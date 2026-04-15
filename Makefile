@@ -13,7 +13,7 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api -db-dsn=${GRADCONNECT_DB_DSN}
+	go run ./cmd/api -port=4000 -db-dsn=${GRADCONNECT_DB_DSN}
 
 ## build/api: build the cmd/api application
 .PHONY: build/api
@@ -54,7 +54,7 @@ db/seed:
 .PHONY: docs/generate
 docs/generate:
 	@echo 'Generating API documentation...'
-	swag init -g cmd/api/main.go -o cmd/api/docs
+	swag init -g cmd/api/main.go -o cmd/api/docs --parseDependency
 
 ## audit: tidy dependencies, vet, staticcheck, and test
 .PHONY: audit

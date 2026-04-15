@@ -22,5 +22,8 @@ func (app *application) routes() http.Handler {
 	// health check route
 	router.HandlerFunc(http.MethodGet, "/api/v1/healthcheck", app.healthcheckHandler)
 
+	// employer routes
+	router.HandlerFunc(http.MethodGet, "/api/v1/employers", app.listEmployersHandler)
+
 	return router
 }

@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gradconnect-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gradconnect
+      POSTGRES_USER: gradconnect
+      POSTGRES_PASSWORD: gradconnect_dev_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gradconnect -d gradconnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-test:
+    image: postgres:16-alpine
+    container_name: gradconnect-db-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gradconnect_test
+      POSTGRES_USER: gradconnect
+      POSTGRES_PASSWORD: gradconnect_dev_pw
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gradconnect -d gradconnect_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  pgdata_test:
