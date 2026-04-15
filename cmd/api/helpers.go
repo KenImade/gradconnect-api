@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"api.gradconnect.com/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 type envelope map[string]any
@@ -68,4 +70,26 @@ func (app *application) readBool(qs url.Values, key string, defaultValue *bool) 
 	}
 
 	return &b
+}
+
+func (app *application) readSlugParam(r *http.Request) (string, error) {
+	params := httprouter.ParamsFromContext(r.Context())
+
+	slug := params.ByName("slug")
+	if slug == "" {
+		return "", errors.New("missing slug parameter")
+	}
+
+	return slug, nil
+}
+
+func (app *application) readIDParam(r *http.Request) (string, error) {
+	params := httprouter.ParamsFromContext(r.Context())
+
+	id := params.ByName("id")
+	if !validator.IsValidUUID(id) {
+		return "", errors.New("invalid id parameter")
+	}
+
+	return id, nil
 }

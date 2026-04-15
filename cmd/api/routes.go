@@ -24,6 +24,7 @@ func (app *application) routes() http.Handler {
 
 	// employer routes
 	router.HandlerFunc(http.MethodGet, "/api/v1/employers", app.listEmployersHandler)
+	router.HandlerFunc(http.MethodGet, "/api/v1/employers/:identifier", app.showEmployerHandler)
 
 	return router
 }

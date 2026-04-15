@@ -3,10 +3,12 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"api.gradconnect.com/internal/validator"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -58,11 +60,86 @@ func (m EmployerModel) Insert(employer *Employer) error {
 }
 
 func (m EmployerModel) GetByID(id string) (*Employer, error) {
-	return nil, nil
+	query := `
+		SELECT id, name, slug, industry, size, hq_location, offices,
+			logo_url, overview, culture, website, social_links,
+			is_verified, version, created_at, updated_at
+		FROM employer
+		WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var employer Employer
+
+	err := m.DB.QueryRow(ctx, query, id).Scan(
+		&employer.ID,
+		&employer.Name,
+		&employer.Slug,
+		&employer.Industry,
+		&employer.Size,
+		&employer.HQLocation,
+		&employer.Offices,
+		&employer.LogoURL,
+		&employer.Overview,
+		&employer.Culture,
+		&employer.Website,
+		&employer.SocialLinks,
+		&employer.IsVerified,
+		&employer.Version,
+		&employer.CreatedAt,
+		&employer.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return &employer, nil
 }
 
 func (m EmployerModel) GetBySlug(slug string) (*Employer, error) {
-	return nil, nil
+	query := `
+		SELECT id, name, slug, industry, size, hq_location, offices,
+			logo_url, overview, culture, website, social_links,
+			is_verified, version, created_at, updated_at
+		FROM employer
+		WHERE slug = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var employer Employer
+
+	err := m.DB.QueryRow(ctx, query, slug).Scan(
+		&employer.ID,
+		&employer.Name,
+		&employer.Slug,
+		&employer.Industry,
+		&employer.Size,
+		&employer.HQLocation,
+		&employer.Offices,
+		&employer.LogoURL,
+		&employer.Overview,
+		&employer.Culture,
+		&employer.Website,
+		&employer.SocialLinks,
+		&employer.IsVerified,
+		&employer.Version,
+		&employer.CreatedAt,
+		&employer.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return &employer, nil
 }
 
 func (m EmployerModel) Update(employer *Employer) error {

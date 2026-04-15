@@ -1,6 +1,8 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+)
 
 func (app *application) logError(r *http.Request, err error) {
 	var (
@@ -30,4 +32,9 @@ func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Reque
 
 func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
+}
+
+func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
+	message := "requested resource was not found"
+	app.errorResponse(w, r, http.StatusNotFound, message)
 }

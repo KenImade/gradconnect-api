@@ -24,7 +24,7 @@ build/api:
 ## db/psql: connect to the database using psql
 .PHONY: db/psql
 db/psql:
-	psql ${GRADCONNECT_DB_DSN}
+	docker exec -it gradconnect-db psql -U gradconnect -d gradconnect
 
 ## db/migrations/new name=$1: create a new database migration
 .PHONY: db/migrations/new
@@ -48,7 +48,7 @@ db/migrations/down: confirm
 .PHONY: db/seed
 db/seed:
 	@echo 'Seeding database...'
-	psql ${GRADCONNECT_DB_DSN} -f ./migrations/seed.sql
+	docker exec -i gradconnect-db psql -U gradconnect -d gradconnect < ./migrations/seed.sql
 
 ## docs/generate: generate Swagger/OpenAPI documentation
 .PHONY: docs/generate

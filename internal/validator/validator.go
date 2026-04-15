@@ -3,6 +3,8 @@ package validator
 import (
 	"regexp"
 	"slices"
+
+	"github.com/google/uuid"
 )
 
 // regular expression for checking validity of email addresses
@@ -58,4 +60,10 @@ func Unique[T comparable](values []T) bool {
 	}
 
 	return len(values) == len(uniqueValues)
+}
+
+// validate UUID
+func IsValidUUID(value string) bool {
+	_, err := uuid.Parse(value)
+	return err == nil
 }

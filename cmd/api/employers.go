@@ -1,15 +1,55 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
-func (app *application) createEmployerHandler(w http.ResponseWriter, r *http.Request) {}
+func (app *application) createEmployerHandler(w http.ResponseWriter, r *http.Request) {
+	// v.Check(validator.IsValidUUID(input.EmployerID), "employer_id", "must be a valid UUID")
+}
 
-func (app *application) showEmployerHandler(w http.ResponseWriter, r *http.Request) {}
+// @Summary      Show employer
+// @Description  Get a full employer hub profile by slug or ID
+// @Tags         Employers
+// @Produce      json
+// @Param        identifier  path  string  true  "Employer slug or UUID"
+// @Success      200  {object}  envelope{data=data.Employer}
+// @Failure      404  {object}  envelope{error=object}
+// @Failure      500  {object}  envelope{error=object}
+// @Router       /employers/{identifier} [get]
+func (app *application) showEmployerHandler(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	identifier := params.ByName("identifier")
+
+	var employer *data.Employer
+	var err error
+
+	if validator.IsValidUUID(identifier) {
+		employer, err = app.models.Employers.GetByID(identifier)
+	} else {
+		employer, err = app.models.Employers.GetBySlug(identifier)
+	}
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": employer}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
 
 func (app *application) updateEmployerHandler(w http.ResponseWriter, r *http.Request) {}
 
@@ -42,7 +82,7 @@ func (app *application) listEmployersHandler(w http.ResponseWriter, r *http.Requ
 
 	qs := r.URL.Query()
 
-	input.Search = app.readString(qs, "search", "")
+	input.Search = app.readString(qs, "q", "")
 	input.Industry = app.readString(qs, "industry", "")
 	input.IsVerified = app.readBool(qs, "is_verified", nil)
 
