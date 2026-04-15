@@ -24,6 +24,7 @@ go.work
 bin/
 .env
 .envrc
+cmd/api/docs/
 docs/
 *.exe
 *.test
