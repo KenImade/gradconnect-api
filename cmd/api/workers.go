@@ -79,7 +79,7 @@ func (app *application) runTaskWorker() {
 
 func (app *application) processTask(jobType string, payload []byte) error {
 	switch jobType {
-	case "email:welcome":
+	case "email:verify":
 		var data struct {
 			Email           string `json:"user_email"`
 			FirstName       string `json:"first_name"`
@@ -88,7 +88,16 @@ func (app *application) processTask(jobType string, payload []byte) error {
 		if err := json.Unmarshal(payload, &data); err != nil {
 			return err
 		}
+		return app.mailer.Send(data.Email, "email_verify.tmpl", data)
 
+	case "email:welcome":
+		var data struct {
+			Email     string `json:"user_email"`
+			FirstName string `json:"first_name"`
+		}
+		if err := json.Unmarshal(payload, &data); err != nil {
+			return err
+		}
 		return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
 
 	default:

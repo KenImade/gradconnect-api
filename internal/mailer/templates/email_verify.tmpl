@@ -1,0 +1,86 @@
+{{define "subject"}}Verify your GradConnect email{{end}}
+
+{{define "plainBody"}}
+Hi {{.FirstName}},
+
+Welcome to GradConnect — Nigeria's graduate career intelligence platform.
+
+To activate your account and start contributing to the community, please verify your email address:
+
+https://gradconnect.com/verify?token={{.ActivationToken}}
+
+This link will expire in 24 hours.
+
+If you didn't create an account with us, please ignore this email.
+
+Best regards,
+The GradConnect Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Verify your email</title>
+</head>
+<body style="background-color: #f0f4f1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 40px 0;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    
+                    <!-- Header with green accent -->
+                    <tr>
+                        <td style="background-color: #2f855a; padding: 32px 40px; text-align: center;">
+                            <h1 style="color: #ffffff; font-size: 26px; margin: 0; font-weight: 600; letter-spacing: -0.3px;">GradConnect</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Main content -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px 40px; color: #2d3748; line-height: 1.6;">
+                            <h2 style="color: #1a202c; font-size: 22px; margin: 0 0 20px 0;">One more step, {{.FirstName}} 👋</h2>
+                            <p style="margin: 0 0 16px 0; color: #4a5568;">Thanks for joining Nigeria's graduate career intelligence platform. We're building the unfiltered, community-driven resource that Nigerian graduates deserve.</p>
+                            <p style="margin: 0 0 24px 0; color: #4a5568;">Please verify your email address to activate your account:</p>
+                            
+                            <div style="text-align: center; margin: 32px 0;">
+                                <a href="https://gradconnect.com/verify?token={{.ActivationToken}}" 
+                                   style="background-color: #2f855a; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block;">
+                                   Verify Email Address
+                                </a>
+                            </div>
+
+                            <p style="font-size: 13px; color: #718096; margin: 24px 0 6px 0;">If the button doesn't work, paste this link into your browser:</p>
+                            <p style="font-size: 12px; color: #276749; margin: 0; word-break: break-all;">https://gradconnect.com/verify?token={{.ActivationToken}}</p>
+                        </td>
+                    </tr>
+
+                    <!-- Notice card -->
+                    <tr>
+                        <td style="padding: 0 40px 32px 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fffbea; border-left: 3px solid #d69e2e; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 14px 18px; color: #744210; font-size: 13px; line-height: 1.5;">
+                                        <strong>Heads up:</strong> This verification link expires in 24 hours. If it does, just log in and we'll send a new one.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f7fafc; color: #718096; font-size: 12px; text-align: center; border-top: 1px solid #edf2f7;">
+                            <p style="margin: 0 0 6px 0;">Didn't sign up? You can safely ignore this email.</p>
+                            <p style="margin: 0;">&copy; 2026 GradConnect. Lagos, Nigeria.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+{{end}}

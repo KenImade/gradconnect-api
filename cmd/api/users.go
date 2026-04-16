@@ -98,7 +98,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
 		}
-		if err := app.models.Tasks.Insert(r.Context(), tx, "email:welcome", taskPayload); err != nil {
+		if err := app.models.Tasks.Insert(r.Context(), tx, "email:verify", taskPayload); err != nil {
 			return err
 		}
 
@@ -215,7 +215,79 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {}
+// activateUserHandler godoc
+// @Summary      Activate a user account
+// @Description  Verify a user's email address using the activation token sent by email.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        token  query     string  true  "Activation token"
+// @Success      200    {object}  data.User
+// @Failure      400    {object}  ErrorResponse
+// @Failure      422    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /auth/verify-email [get]
+func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+	tokenPlaintext := r.URL.Query().Get("token")
+
+	v := validator.New()
+	v.Check(tokenPlaintext != "", "token", "must be provided")
+	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	var user *data.User
+
+	err := app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		userID, err := app.models.Tokens.GetUserForToken(r.Context(), tx, data.ScopeActivation, tokenPlaintext)
+		if err != nil {
+			return err
+		}
+
+		if err := app.models.Users.Activate(r.Context(), tx, userID); err != nil {
+			return err
+		}
+
+		permissions := []string{"review:submit", "review:edit"}
+		if err := app.models.Permissions.AddForUser(r.Context(), tx, userID, permissions...); err != nil {
+			return err
+		}
+
+		if err := app.models.Tokens.DeleteAllForUser(r.Context(), tx, data.ScopeActivation, userID); err != nil {
+			return err
+		}
+
+		user, err = app.models.Users.GetByID(r.Context(), tx, userID)
+		if err != nil {
+			return err
+		}
+
+		// Queue the welcome email task
+		welcomePayload := map[string]any{
+			"user_email": user.Email,
+			"first_name": user.FirstName,
+		}
+		return app.models.Tasks.Insert(r.Context(), tx, "email:welcome", welcomePayload)
+	})
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			v.AddError("token", "invalid or expired activation token")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
 
 func (app *application) updaterUserHandler(w http.ResponseWriter, r *http.Request) {}
 

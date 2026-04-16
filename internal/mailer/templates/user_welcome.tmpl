@@ -1,17 +1,30 @@
-{{define "subject"}}Welcome to GradConnect — Please Verify Your Email{{end}}
+{{define "subject"}}You're in — welcome to GradConnect 🎉{{end}}
 
 {{define "plainBody"}}
 Hi {{.FirstName}},
 
-Welcome to GradConnect! We're excited to help you navigate your graduate career journey.
+Your email is verified and your GradConnect account is fully active. Welcome to the community.
 
-To get started, please verify your email address by clicking the link below:
+Here's what you can do now:
 
-https://gradconnect.com/verify?token={{.ActivationToken}}
+1. Submit reviews
+   Share your experience with graduate programmes — assessment styles, culture, compensation, progression. Your reviews help other graduates make informed decisions.
 
-If you didn't create an account with us, please ignore this email.
+2. Edit as you learn
+   Your views may change as you progress through a programme. You can update your reviews any time.
 
-Best regards,
+3. Explore with context
+   Browse reviews filtered by your industry interests and location preferences.
+
+A few things worth knowing:
+
+- We take review integrity seriously. Be honest, be fair, and keep it constructive.
+- Your personal details (including your email) are never shown alongside your reviews.
+- Found a bug or have feedback? Reply to this email — we read every message.
+
+Log in any time at https://gradconnect.com/login
+
+Welcome aboard,
 The GradConnect Team
 {{end}}
 
@@ -21,37 +34,94 @@ The GradConnect Team
 <head>
     <meta name="viewport" content="width=device-width" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Welcome to GradConnect</title>
 </head>
-<body style="background-color: #f6f6f6; font-family: sans-serif;">
+<body style="background-color: #f0f4f1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0;">
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
         <tr>
-            <td style="padding: 20px 0;">
-                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e9e9e9;">
+            <td style="padding: 40px 0;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    
+                    <!-- Header with green accent -->
                     <tr>
-                        <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                            <h1 style="color: #2d3748; font-size: 24px; margin: 0;">Welcome to GradConnect!</h1>
+                        <td style="background-color: #2f855a; padding: 32px 40px; text-align: center;">
+                            <h1 style="color: #ffffff; font-size: 26px; margin: 0; font-weight: 600; letter-spacing: -0.3px;">GradConnect</h1>
                         </td>
                     </tr>
-                    <tr>
-                        <td style="padding: 20px 40px 40px 40px; color: #4a5568; line-height: 1.6;">
-                            <p>Hi <strong>{{.FirstName}}</strong>,</p>
-                            <p>Thanks for joining Nigeria's graduate career intelligence platform. We're here to help you bridge the gap between graduation and your dream career.</p>
-                            <p>Before we dive in, please verify your email address:</p>
-                            
-                            <div style="text-align: center; margin: 30px 0;">
-                                <a href="https://gradconnect.com/verify?token={{.ActivationToken}}" 
-                                   style="background-color: #3182ce; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-                                   Verify Email Address
-                                </a>
-                            </div>
 
-                            <p style="font-size: 14px; color: #718096;">If the button above doesn't work, copy and paste this link into your browser:</p>
-                            <p style="font-size: 12px; color: #3182ce;">https://gradconnect.com/verify?token={{.ActivationToken}}</p>
+                    <!-- Celebration banner -->
+                    <tr>
+                        <td style="padding: 36px 40px 24px 40px; text-align: center; background: linear-gradient(180deg, #f0fff4 0%, #ffffff 100%);">
+                            <div style="font-size: 42px; margin-bottom: 8px;">🎉</div>
+                            <h2 style="color: #1a202c; font-size: 24px; margin: 0 0 8px 0;">You're in, {{.FirstName}}!</h2>
+                            <p style="color: #4a5568; font-size: 15px; margin: 0;">Your account is fully active.</p>
                         </td>
                     </tr>
+
+                    <!-- Intro -->
                     <tr>
-                        <td style="padding: 20px 40px; background-color: #edf2f7; color: #718096; font-size: 12px; text-align: center;">
-                            &copy; 2026 GradConnect. Lagos, Nigeria.
+                        <td style="padding: 20px 40px 12px 40px; color: #4a5568; line-height: 1.6;">
+                            <p style="margin: 0 0 24px 0;">Thanks for verifying your email. You're now part of the community building Nigeria's most trusted graduate career intelligence platform.</p>
+                            <h3 style="color: #1a202c; font-size: 17px; margin: 0 0 16px 0;">Here's what you can do now:</h3>
+                        </td>
+                    </tr>
+
+                    <!-- Feature cards -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding: 16px 18px; background-color: #f0fff4; border-radius: 8px; border-left: 3px solid #2f855a; margin-bottom: 12px;">
+                                        <p style="color: #1a202c; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">📝 Submit reviews</p>
+                                        <p style="color: #4a5568; font-size: 13px; line-height: 1.5; margin: 0;">Share your experience with graduate programmes — the honest account you wish you'd had.</p>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 10px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 16px 18px; background-color: #f0fff4; border-radius: 8px; border-left: 3px solid #2f855a;">
+                                        <p style="color: #1a202c; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">✏️ Edit as you learn</p>
+                                        <p style="color: #4a5568; font-size: 13px; line-height: 1.5; margin: 0;">Update reviews any time as your experience evolves.</p>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 10px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 16px 18px; background-color: #f0fff4; border-radius: 8px; border-left: 3px solid #2f855a;">
+                                        <p style="color: #1a202c; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">🔍 Explore with context</p>
+                                        <p style="color: #4a5568; font-size: 13px; line-height: 1.5; margin: 0;">Browse reviews filtered by your industry interests and locations.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA -->
+                    <tr>
+                        <td style="padding: 32px 40px; text-align: center;">
+                            <a href="https://gradconnect.com/login" 
+                               style="background-color: #2f855a; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block;">
+                               Log in to your account
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Good-to-know notice -->
+                    <tr>
+                        <td style="padding: 0 40px 32px 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fffbea; border-left: 3px solid #d69e2e; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 14px 18px; color: #744210; font-size: 13px; line-height: 1.6;">
+                                        <strong>Good to know:</strong> Your personal details are never shown alongside your reviews. Found a bug? Just reply to this email — we read every message.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f7fafc; color: #718096; font-size: 12px; text-align: center; border-top: 1px solid #edf2f7;">
+                            <p style="margin: 0 0 6px 0;">&copy; 2026 GradConnect. Lagos, Nigeria.</p>
+                            <p style="margin: 0;">Building graduate career intelligence for Africa.</p>
                         </td>
                     </tr>
                 </table>
