@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +12,39 @@ import (
 func (app *application) createOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
 
 func (app *application) showOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
+
+// @Summary      Show opportunity
+// @Description  Get a full opportunity profile by slug
+// @Tags         Opportunities
+// @Produce      json
+// @Param        slug  path  string  true  "Opportunity slug"
+// @Success      200  {object}  envelope{data=data.Opportunity}
+// @Failure      404  {object}  envelope{error=object}
+// @Failure      500  {object}  envelope{error=object}
+// @Router       /opportunities/{slug} [get]
+func (app *application) showOpportunityBySlugHandler(w http.ResponseWriter, r *http.Request) {
+	slug, err := app.readSlugParam(r)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	opportunity, err := app.models.Opportunities.GetBySlug(slug)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": opportunity}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
 
 func (app *application) updateOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
 

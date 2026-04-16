@@ -2,10 +2,12 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"api.gradconnect.com/internal/validator"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,25 +25,24 @@ type OpportunityFilters struct {
 }
 
 type Opportunity struct {
-	ID             string        `json:"id"`
-	EmployerID     string        `json:"employer_id"`
-	Title          string        `json:"title"`
-	Slug           string        `json:"slug"`
-	Type           string        `json:"type"`
-	IntakeYear     int           `json:"intake_year"`
-	Status         string        `json:"status"` // computed
-	Description    string        `json:"description"`
-	Requirements   *string       `json:"requirements"`
-	Location       string        `json:"location"`
-	DisciplineTags []string      `json:"discipline_tags"`
-	OpensAt        *time.Time    `json:"opens_at"`
-	Deadline       *time.Time    `json:"deadline"`
-	DaysRemaining  *int          `json:"days_remaining"` // computed
-	ApplicationURL string        `json:"application_url"`
-	IsActive       bool          `json:"is_active"`
-	SourceURL      *string       `json:"source_url"`
-	CreatedAt      time.Time     `json:"created_at"`
-	Employer       *EmployerStub `json:"employer,omitempty"`
+	ID             string       `json:"id"`
+	Title          string       `json:"title"`
+	Slug           string       `json:"slug"`
+	Type           string       `json:"type"`
+	IntakeYear     int          `json:"intake_year"`
+	Status         string       `json:"status"` // computed
+	Description    string       `json:"description"`
+	Requirements   *string      `json:"requirements"`
+	Location       string       `json:"location"`
+	DisciplineTags []string     `json:"discipline_tags"`
+	OpensAt        *time.Time   `json:"opens_at"`
+	Deadline       *time.Time   `json:"deadline"`
+	DaysRemaining  *int         `json:"days_remaining"` // computed
+	ApplicationURL string       `json:"application_url"`
+	IsActive       bool         `json:"is_active"`
+	SourceURL      *string      `json:"source_url"`
+	CreatedAt      time.Time    `json:"created_at"`
+	Employer       EmployerStub `json:"employer"`
 }
 
 type EmployerStub struct {
@@ -54,7 +55,7 @@ type EmployerStub struct {
 
 func ValidateOpportunity(v *validator.Validator, opportunity *Opportunity) {
 	// Employer reference
-	v.Check(validator.IsValidUUID(opportunity.EmployerID), "employer_id", "must be a valid UUID")
+	v.Check(validator.IsValidUUID(opportunity.Employer.ID), "employer_id", "must be a valid UUID")
 
 	// Title
 	v.Check(opportunity.Title != "", "title", "must be provided")
@@ -123,7 +124,67 @@ type OpportunityModel struct {
 
 func (m OpportunityModel) Insert(opportunity *Opportunity) error { return nil }
 
-func (m OpportunityModel) Get(id string) (*Opportunity, error) { return nil, nil }
+func (m OpportunityModel) GetByID(id string) (*Opportunity, error) { return nil, nil }
+
+func (m OpportunityModel) GetBySlug(slug string) (*Opportunity, error) {
+	query := `
+		SELECT
+            o.id, o.title, o.slug, o.type, o.intake_year,
+            CASE
+                WHEN o.is_active = false THEN 'withdrawn'
+                WHEN o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at THEN 'upcoming'
+                WHEN o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline THEN 'closed'
+                ELSE 'open'
+            END AS status,
+            o.description, o.requirements, o.location, o.discipline_tags,
+            o.opens_at, o.deadline,
+            CASE WHEN o.deadline IS NULL THEN NULL ELSE (o.deadline - CURRENT_DATE)::int END AS days_remaining,
+            o.application_url, o.is_active, o.source_url, o.created_at,
+            e.id, e.name, e.slug, e.logo_url, e.industry
+        FROM opportunity o
+        INNER JOIN employer e ON e.id = o.employer_id
+		WHERE o.slug = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var opportunity Opportunity
+
+	err := m.DB.QueryRow(ctx, query, slug).Scan(
+		&opportunity.ID,
+		&opportunity.Title,
+		&opportunity.Slug,
+		&opportunity.Type,
+		&opportunity.IntakeYear,
+		&opportunity.Status,
+		&opportunity.Description,
+		&opportunity.Requirements,
+		&opportunity.Location,
+		&opportunity.DisciplineTags,
+		&opportunity.OpensAt,
+		&opportunity.Deadline,
+		&opportunity.DaysRemaining,
+		&opportunity.ApplicationURL,
+		&opportunity.IsActive,
+		&opportunity.SourceURL,
+		&opportunity.CreatedAt,
+		&opportunity.Employer.ID,
+		&opportunity.Employer.Name,
+		&opportunity.Employer.Slug,
+		&opportunity.Employer.LogoURL,
+		&opportunity.Employer.Industry,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return &opportunity, nil
+
+}
 
 func (m OpportunityModel) Update(Opportunity *Opportunity) error { return nil }
 
@@ -133,7 +194,7 @@ func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Meta
 	query := fmt.Sprintf(`
         SELECT
             count(*) OVER(),
-            o.id, o.employer_id, o.title, o.slug, o.type, o.intake_year,
+            o.id, o.title, o.slug, o.type, o.intake_year,
             CASE
                 WHEN o.is_active = false THEN 'withdrawn'
                 WHEN o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at THEN 'upcoming'
@@ -209,11 +270,10 @@ func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Meta
 
 	for rows.Next() {
 		var opportunity Opportunity
-		opportunity.Employer = &EmployerStub{}
 
 		err := rows.Scan(
 			&totalRecords,
-			&opportunity.ID, &opportunity.EmployerID, &opportunity.Title, &opportunity.Slug,
+			&opportunity.ID, &opportunity.Title, &opportunity.Slug,
 			&opportunity.Type, &opportunity.IntakeYear, &opportunity.Status,
 			&opportunity.Description, &opportunity.Requirements, &opportunity.Location,
 			&opportunity.DisciplineTags, &opportunity.OpensAt, &opportunity.Deadline,
