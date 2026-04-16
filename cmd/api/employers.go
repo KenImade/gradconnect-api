@@ -88,7 +88,7 @@ func (app *application) listEmployersHandler(w http.ResponseWriter, r *http.Requ
 	input.Filters.Sort = app.readString(qs, "sort", "name")
 	input.Filters.SortSafeList = []string{"name", "created_at", "-name", "-created_at"}
 
-	if data.ValidationFilters(v, input.Filters); !v.Valid() {
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}

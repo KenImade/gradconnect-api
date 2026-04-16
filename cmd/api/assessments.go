@@ -46,7 +46,7 @@ func (app *application) listAssessmentsHandler(w http.ResponseWriter, r *http.Re
 	input.Filters.Sort = app.readString(qs, "sort", "programme_type")
 	input.Filters.SortSafeList = []string{"programme_type", "updated_at", "-programme_type", "-updated_at"}
 
-	if data.ValidationFilters(v, input.Filters); !v.Valid() {
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}

@@ -184,3 +184,192 @@ VALUES
     3,
     '## How to prepare\n\nFlutterwave cares about shipping ability over credentials. Make sure your GitHub has real projects, not just tutorials. The take-home is evaluated on code quality, test coverage, and documentation — not just whether it works. For the system design round, be ready to discuss trade-offs at scale.'
 );
+
+-- ============================================================================
+-- Opportunities
+-- ============================================================================
+
+TRUNCATE opportunity CASCADE;
+
+INSERT INTO opportunity (id, employer_id, title, slug, type, intake_year, description, requirements, location, discipline_tags, opens_at, deadline, application_url, is_active, source_url)
+VALUES
+-- Access Bank — open graduate trainee
+(
+    'c1b2c3d4-1111-4000-8000-000000000001',
+    'a1b2c3d4-1111-4000-8000-000000000001',
+    'Graduate Trainee Programme 2026',
+    'access-bank-gtp-2026',
+    'graduate_trainee',
+    2026,
+    'Access Bank''s flagship graduate programme offers rotational placements across retail banking, corporate banking, risk, and operations. Trainees receive intensive classroom training followed by on-the-job rotations across four business units.',
+    'Minimum 2:1 degree from an accredited university, completed NYSC, maximum age 27, strong numerical and verbal reasoning skills.',
+    'Lagos',
+    ARRAY['Finance', 'Economics', 'Accounting', 'Engineering', 'Business Administration'],
+    '2026-01-15',
+    '2026-05-30',
+    'https://careers.accessbankplc.com/apply/gtp-2026',
+    true,
+    'https://careers.accessbankplc.com/gtp-2026'
+),
+-- Access Bank — upcoming summer internship
+(
+    'c1b2c3d4-1111-4000-8000-000000000002',
+    'a1b2c3d4-1111-4000-8000-000000000001',
+    'Summer Internship Programme 2026',
+    'access-bank-summer-2026',
+    'internship',
+    2026,
+    'An eight-week summer internship for penultimate-year students, exposing interns to the day-to-day operations of one of Nigeria''s largest commercial banks.',
+    'Penultimate-year student with minimum 2:1 GPA. Open to students in any discipline with interest in banking.',
+    'Lagos',
+    ARRAY['Finance', 'Economics', 'Accounting', 'Law'],
+    '2026-06-01',
+    '2026-07-31',
+    'https://careers.accessbankplc.com/apply/summer-2026',
+    true,
+    'https://careers.accessbankplc.com/summer-2026'
+),
+-- PwC — open graduate associate
+(
+    'c1b2c3d4-2222-4000-8000-000000000003',
+    'a1b2c3d4-2222-4000-8000-000000000002',
+    'Graduate Associate Programme 2026 - Assurance',
+    'pwc-assurance-2026',
+    'graduate_trainee',
+    2026,
+    'Join PwC''s Assurance practice as a graduate associate. You will work on audit engagements across multiple industries while pursuing your ICAN or ACCA qualification with full study support.',
+    'Minimum 2:1 degree in Accounting, Finance, Economics, or related quantitative discipline. ICAN foundation preferred but not required. Completed NYSC or in final semester.',
+    'Lagos',
+    ARRAY['Accounting', 'Finance', 'Economics', 'Business Administration'],
+    '2026-02-01',
+    '2026-04-15',
+    'https://careers.pwc.com/ng/apply/assurance-2026',
+    true,
+    'https://careers.pwc.com/ng/assurance-2026'
+),
+-- PwC — closed (past deadline)
+(
+    'c1b2c3d4-2222-4000-8000-000000000004',
+    'a1b2c3d4-2222-4000-8000-000000000002',
+    'Graduate Associate Programme 2025 - Advisory',
+    'pwc-advisory-2025',
+    'graduate_trainee',
+    2025,
+    'PwC''s Advisory practice hired 2025 graduates to work on strategy, operations, and technology consulting engagements for top Nigerian and multinational clients.',
+    'Minimum 2:1 degree, strong analytical and communication skills, completed NYSC.',
+    'Lagos',
+    ARRAY['Business Administration', 'Economics', 'Engineering', 'Computer Science'],
+    '2025-01-15',
+    '2025-03-31',
+    'https://careers.pwc.com/ng/apply/advisory-2025',
+    true,
+    'https://careers.pwc.com/ng/advisory-2025'
+),
+-- Dangote — open graduate trainee
+(
+    'c1b2c3d4-3333-4000-8000-000000000005',
+    'a1b2c3d4-3333-4000-8000-000000000003',
+    'Graduate Engineers Trainee Scheme 2026',
+    'dangote-gets-2026',
+    'graduate_trainee',
+    2026,
+    'The Graduate Engineers Trainee Scheme (GETS) is Dangote Group''s flagship engineering development programme. Trainees rotate through cement, sugar, and salt operations, gaining hands-on experience in production, maintenance, and process engineering.',
+    'First-class or 2:1 degree in Mechanical, Electrical, Chemical, Civil, or Industrial Engineering. Completed NYSC. Willingness to work at plant locations (Obajana, Ibese, Apapa).',
+    'Obajana',
+    ARRAY['Engineering', 'Mechanical Engineering', 'Electrical Engineering', 'Chemical Engineering'],
+    '2026-03-01',
+    '2026-06-30',
+    'https://careers.dangote.com/gets-2026',
+    true,
+    'https://careers.dangote.com/gets-2026'
+),
+-- Dangote — upcoming industrial attachment
+(
+    'c1b2c3d4-3333-4000-8000-000000000006',
+    'a1b2c3d4-3333-4000-8000-000000000003',
+    'Industrial Attachment Programme 2027',
+    'dangote-iap-2027',
+    'industrial_attachment',
+    2027,
+    'Six-month industrial attachment placement for engineering students undertaking their SIWES placement. Structured learning across cement production, logistics, and plant maintenance.',
+    'Engineering student currently in 300 or 400 level requiring SIWES placement. Must be enrolled in an accredited Nigerian university.',
+    'Ibese',
+    ARRAY['Engineering', 'Mechanical Engineering', 'Electrical Engineering'],
+    '2026-09-01',
+    '2026-11-30',
+    'https://careers.dangote.com/iap-2027',
+    true,
+    'https://careers.dangote.com/iap-2027'
+),
+-- Shell — open graduate programme
+(
+    'c1b2c3d4-4444-4000-8000-000000000007',
+    'a1b2c3d4-4444-4000-8000-000000000004',
+    'Shell Graduate Programme 2026',
+    'shell-sgp-2026',
+    'graduate_trainee',
+    2026,
+    'The Shell Graduate Programme is a structured three-year development programme across technical and commercial disciplines. Graduates work on real projects from day one with international exposure and technical mentorship.',
+    'Minimum 2:1 degree in Engineering, Geosciences, Finance, HR, or related commercial discipline. Completed NYSC. Fluent English.',
+    'Port Harcourt',
+    ARRAY['Engineering', 'Petroleum Engineering', 'Geosciences', 'Finance', 'Human Resources'],
+    '2026-01-10',
+    '2026-04-30',
+    'https://careers.shell.com/ng/sgp-2026',
+    true,
+    'https://careers.shell.com/ng/sgp-2026'
+),
+-- Flutterwave — open graduate engineer
+(
+    'c1b2c3d4-5555-4000-8000-000000000008',
+    'a1b2c3d4-5555-4000-8000-000000000005',
+    'Graduate Software Engineer 2026',
+    'flutterwave-gse-2026',
+    'graduate_trainee',
+    2026,
+    'Join Flutterwave as a Graduate Software Engineer and work on the payment infrastructure that powers businesses across Africa. You will build and ship features that serve millions of transactions.',
+    'Strong computer science fundamentals, proficiency in at least one modern language (Go, Python, TypeScript, Java), demonstrated projects on GitHub or similar.',
+    'Lagos',
+    ARRAY['Computer Science', 'Software Engineering', 'Engineering'],
+    '2026-02-15',
+    '2026-05-15',
+    'https://careers.flutterwave.com/gse-2026',
+    true,
+    'https://careers.flutterwave.com/gse-2026'
+),
+-- Flutterwave — NYSC placement
+(
+    'c1b2c3d4-5555-4000-8000-000000000009',
+    'a1b2c3d4-5555-4000-8000-000000000005',
+    'NYSC Placement - Product Team 2026',
+    'flutterwave-nysc-product-2026',
+    'nysc',
+    2026,
+    'NYSC placement with Flutterwave''s product team. You will contribute to product research, user interviews, and feature specification for our merchant products.',
+    'Corps member available for one-year NYSC service. Degree in any discipline with interest in fintech and product management.',
+    'Lagos',
+    ARRAY['Business Administration', 'Economics', 'Marketing', 'Computer Science'],
+    '2026-04-01',
+    '2026-06-30',
+    'https://careers.flutterwave.com/nysc-product-2026',
+    true,
+    'https://careers.flutterwave.com/nysc-product-2026'
+),
+-- Withdrawn listing (is_active = false) for testing filter
+(
+    'c1b2c3d4-1111-4000-8000-000000000010',
+    'a1b2c3d4-1111-4000-8000-000000000001',
+    'Graduate Programme 2026 - Withdrawn',
+    'access-bank-withdrawn-2026',
+    'graduate_trainee',
+    2026,
+    'This listing was withdrawn by the employer for testing the status filter.',
+    'N/A',
+    'Lagos',
+    ARRAY['Finance'],
+    '2026-01-01',
+    '2026-06-30',
+    'https://example.com/withdrawn',
+    false,
+    'https://example.com/withdrawn'
+);

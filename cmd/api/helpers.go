@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"api.gradconnect.com/internal/validator"
 	"github.com/julienschmidt/httprouter"
@@ -70,6 +71,21 @@ func (app *application) readBool(qs url.Values, key string, defaultValue *bool) 
 	}
 
 	return &b
+}
+
+func (app *application) readDate(qs url.Values, key string, defaultValue time.Time, v *validator.Validator) time.Time {
+	s := qs.Get(key)
+	if s == "" {
+		return defaultValue
+	}
+
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		v.AddError(key, "invalid date format, expected YYYY-MM-DD")
+		return defaultValue
+	}
+
+	return t
 }
 
 func (app *application) readSlugParam(r *http.Request) (string, error) {

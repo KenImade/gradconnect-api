@@ -11,6 +11,7 @@ import (
 var (
 	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 	SlugRX  = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	URLRX   = regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
 )
 
 type Validator struct {

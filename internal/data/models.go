@@ -12,15 +12,17 @@ var (
 )
 
 type Models struct {
-	Employers   EmployerModel
-	Assessments AssessmentModel
-	Reviews     ReviewModel
+	Employers     EmployerModel
+	Assessments   AssessmentModel
+	Reviews       ReviewModel
+	Opportunities OpportunityModel
 }
 
 func NewModels(db *pgxpool.Pool) Models {
 	return Models{
-		Employers:   EmployerModel{DB: db},
-		Assessments: AssessmentModel{DB: db},
-		Reviews:     ReviewModel{DB: db},
+		Employers:     EmployerModel{DB: db},
+		Assessments:   AssessmentModel{DB: db},
+		Reviews:       ReviewModel{DB: db},
+		Opportunities: OpportunityModel{DB: db},
 	}
 }

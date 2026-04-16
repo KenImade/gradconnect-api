@@ -38,7 +38,7 @@ func (app *application) listReviewsHandler(w http.ResponseWriter, r *http.Reques
 	input.Filters.Sort = app.readString(qs, "sort", "-created_at")
 	input.Filters.SortSafeList = []string{"difficulty_rating", "experience_rating", "created_at", "-difficulty_rating", "-experience_rating", "-created_at"}
 
-	if data.ValidationFilters(v, input.Filters); !v.Valid() {
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}

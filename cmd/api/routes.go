@@ -32,6 +32,9 @@ func (app *application) routes() http.Handler {
 	// review routes
 	router.HandlerFunc(http.MethodGet, "/api/v1/employers/:slug/reviews", app.listReviewsHandler)
 
+	// opportunities
+	router.HandlerFunc(http.MethodGet, "/api/v1/opportunities", app.listOpportunitiesHandler)
+
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
 
