@@ -14,26 +14,22 @@ func (app *application) createEmployerHandler(w http.ResponseWriter, r *http.Req
 }
 
 // @Summary      Show employer
-// @Description  Get a full employer hub profile by slug or ID
+// @Description  Get a full employer hub profile by slug
 // @Tags         Employers
 // @Produce      json
-// @Param        identifier  path  string  true  "Employer slug or UUID"
+// @Param        slug  path  string  true  "Employer slug"
 // @Success      200  {object}  envelope{data=data.Employer}
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
-// @Router       /employers/{identifier} [get]
-func (app *application) showEmployerHandler(w http.ResponseWriter, r *http.Request) {
+// @Router       /employers/{slug} [get]
+func (app *application) showEmployerBySlugHandler(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
-	identifier := params.ByName("identifier")
+	identifier := params.ByName("slug")
 
 	var employer *data.Employer
 	var err error
 
-	if validator.IsValidUUID(identifier) {
-		employer, err = app.models.Employers.GetByID(identifier)
-	} else {
-		employer, err = app.models.Employers.GetBySlug(identifier)
-	}
+	employer, err = app.models.Employers.GetBySlug(identifier)
 
 	if err != nil {
 		switch {

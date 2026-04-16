@@ -48,7 +48,7 @@ db/migrations/down: confirm
 .PHONY: db/seed
 db/seed:
 	@echo 'Seeding database...'
-	docker exec -i gradconnect-db psql -U gradconnect -d gradconnect < ./migrations/seed.sql
+	docker exec -i gradconnect-db psql -U gradconnect -d gradconnect < ./migrations/seed/seed.sql
 
 ## docs/generate: generate Swagger/OpenAPI documentation
 .PHONY: docs/generate
