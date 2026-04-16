@@ -34,6 +34,7 @@ type config struct {
 		password string
 		sender   string
 	}
+	frontendURL string
 }
 
 type application struct {
@@ -71,6 +72,8 @@ func main() {
 	flag.StringVar(&cfg.smtp.username, "smtp-username", "f111705a4bf447", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "eb96d8aef81e66", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "GradConnect <no-reply@gradconnect.ng>", "SMTP sender")
+
+	flag.StringVar(&cfg.frontendURL, "frontend-url", "localhost:4000", "Frontend URL")
 
 	flag.Parse()
 

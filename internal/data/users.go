@@ -33,6 +33,10 @@ type User struct {
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
+}
+
 type password struct {
 	plaintext *string
 	hash      []byte

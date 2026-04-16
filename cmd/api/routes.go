@@ -12,6 +12,9 @@ import (
 func (app *application) routes() http.Handler {
 	router := httprouter.New()
 
+	router.NotFound = http.HandlerFunc(app.notFoundResponse)
+	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
+
 	// Swagger and Redoc Documentation
 	router.HandlerFunc(http.MethodGet, "/", app.redocHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/docs/redoc", app.redocHandler)
@@ -41,8 +44,14 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/login", app.loginUserHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/auth/verify-email", app.activateUserHandler)
 
+	// Authenticated routes
+
+	// auth
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/resend-verification",
+		app.requireAuthenticatedUser(app.resendVerificationEmailHandler))
+
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
 
-	return router
+	return app.authenticate(router)
 }

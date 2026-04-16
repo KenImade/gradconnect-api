@@ -222,9 +222,9 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 // @Accept       json
 // @Produce      json
 // @Param        token  query     string  true  "Activation token"
-// @Success      200    {object}  data.User
-// @Failure      400    {object}  ErrorResponse
-// @Failure      422    {object}  ErrorResponse
+// @Success      302    "Redirect to frontend success page"
+// @Failure      302    "Redirect to frontend failure page on invalid/expired token"
+// @Failure      422    {object}  ErrorResponse  "Missing or malformed token"
 // @Failure      500    {object}  ErrorResponse
 // @Router       /auth/verify-email [get]
 func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -275,15 +275,55 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			v.AddError("token", "invalid or expired activation token")
-			app.failedValidationResponse(w, r, v.Errors)
+			http.Redirect(w, r, app.config.frontendURL+"/verify/failed", http.StatusFound)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	http.Redirect(w, r, app.config.frontendURL+"/verify/success", http.StatusFound)
+}
+
+// resendVerificationEmailHandler godoc
+// @Summary      Resend email verification link
+// @Description  Deletes any existing verification token for the authenticated user and queues a new verification email.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  envelope
+// @Failure      401  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse  "Email already verified"
+// @Failure      500  {object}  ErrorResponse
+// @Router       /auth/resend-verification [post]
+func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r *http.Request) {
+	user := app.contextGetUser(r)
+
+	if user.EmailVerified {
+		app.errorResponse(w, r, http.StatusConflict, "email is already verified")
+		return
+	}
+
+	err := app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		token, err := app.models.Tokens.New(r.Context(), tx, user.ID, 24*time.Hour, data.ScopeActivation)
+		if err != nil {
+			return err
+		}
+
+		taskPayload := map[string]any{
+			"user_email":       user.Email,
+			"first_name":       user.FirstName,
+			"activation_token": token.Plaintext,
+		}
+		return app.models.Tasks.Insert(r.Context(), tx, "email:verify", taskPayload)
+	})
+
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "verification email sent"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

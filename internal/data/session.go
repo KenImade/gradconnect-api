@@ -2,8 +2,10 @@ package data
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -42,14 +44,14 @@ func (m SessionModel) Create(ctx context.Context, db DBTX, userID, ipAddress, us
 	return session, nil
 }
 
-func (m SessionModel) GetByID(ctx context.Context, id string) (*Session, error) {
+func (m SessionModel) GetByID(ctx context.Context, db DBTX, id string) (*Session, error) {
 	query := `
-		SELECT id, user_id, ip_address, user_agent, created_at, expires_at
-		FROM session
-		WHERE id = $1 AND expires_at > now()`
+        SELECT id, user_id, ip_address, user_agent, created_at, expires_at
+        FROM session
+        WHERE id = $1 AND expires_at > now()`
 
 	session := &Session{}
-	err := m.DB.QueryRow(ctx, query).Scan(
+	err := db.QueryRow(ctx, query, id).Scan(
 		&session.ID,
 		&session.UserID,
 		&session.IPAddress,
@@ -58,8 +60,14 @@ func (m SessionModel) GetByID(ctx context.Context, id string) (*Session, error) 
 		&session.ExpiresAt,
 	)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
 	}
+
 	return session, nil
 }
 
