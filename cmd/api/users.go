@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -73,6 +74,9 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	var token *data.Token
+	var session *data.Session
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
 	// --- TRANSACTION START ---
 	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
@@ -87,21 +91,26 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			return err
 		}
 
-		// 3. Create activation token (Atomic with User creation)
+		// 3. Create activation token
 		var err error
 		token, err = app.models.Tokens.New(r.Context(), tx, user.ID, 24*time.Hour, data.ScopeActivation)
 		if err != nil {
 			return err
 		}
 
-		// 4. Queue the Welcome Email Task
+		// 4. Queue the welcome email task
 		taskPayload := map[string]any{
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
 		}
+		if err := app.models.Tasks.Insert(r.Context(), tx, "email:welcome", taskPayload); err != nil {
+			return err
+		}
 
-		return app.models.Tasks.Insert(r.Context(), tx, "email:welcome", taskPayload)
+		// 5. Create session
+		session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
+		return err
 	})
 	// --- TRANSACTION END ---
 
@@ -115,6 +124,16 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    session.ID,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
 
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/api/v1/users/%s", user.ID))

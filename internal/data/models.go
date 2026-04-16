@@ -17,6 +17,7 @@ type Models struct {
 	Opportunities OpportunityModel
 	Permissions   PermissionModel
 	Reviews       ReviewModel
+	Sessions      SessionModel
 	Tasks         TaskModel
 	Tokens        TokenModel
 	Users         UserModel
@@ -29,6 +30,7 @@ func NewModels(db *pgxpool.Pool) Models {
 		Opportunities: OpportunityModel{DB: db},
 		Permissions:   PermissionModel{DB: db},
 		Reviews:       ReviewModel{DB: db},
+		Sessions:      SessionModel{DB: db},
 		Tasks:         TaskModel{DB: db},
 		Tokens:        TokenModel{DB: db},
 		Users:         UserModel{DB: db},
