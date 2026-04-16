@@ -80,25 +80,19 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	// --- TRANSACTION START ---
 	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
-		// 1. Insert the user
+		// Insert the user
 		if err := app.models.Users.Insert(r.Context(), tx, user); err != nil {
 			return err
 		}
 
-		// 2. Add default permissions
-		permissions := []string{"review:submit", "review:edit"}
-		if err := app.models.Permissions.AddForUser(r.Context(), tx, user.ID, permissions...); err != nil {
-			return err
-		}
-
-		// 3. Create activation token
+		// Create activation token
 		var err error
 		token, err = app.models.Tokens.New(r.Context(), tx, user.ID, 24*time.Hour, data.ScopeActivation)
 		if err != nil {
 			return err
 		}
 
-		// 4. Queue the welcome email task
+		// Queue the welcome email task
 		taskPayload := map[string]any{
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
@@ -108,7 +102,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			return err
 		}
 
-		// 5. Create session
+		// Create session
 		session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
 		return err
 	})
@@ -138,6 +132,84 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/api/v1/users/%s", user.ID))
 	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// loginUserHandler godoc
+// @Summary      Authenticate a user
+// @Description  Validate credentials, create a new session, and set a session cookie.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      object{email=string,password=string}  true  "Login Credentials"
+// @Success      200          {object}  data.User
+// @Failure      400          {object}  ErrorResponse
+// @Failure      401          {object}  ErrorResponse
+// @Failure      422          {object}  ErrorResponse
+// @Failure      500          {object}  ErrorResponse
+// @Router       /auth/login [post]
+func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateEmail(v, input.Email)
+	data.ValidatePasswordPlaintext(v, input.Password)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	user, err := app.models.Users.GetByEmail(r.Context(), app.db, input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.invalidCredentialsResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	match, err := user.Password.Matches(input.Password)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	if !match {
+		app.invalidCredentialsResponse(w, r)
+		return
+	}
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	session, err := app.models.Sessions.Create(r.Context(), app.db, user.ID, ip, r.UserAgent())
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    session.ID,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

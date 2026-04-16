@@ -154,7 +154,43 @@ func (m UserModel) Insert(ctx context.Context, tx pgx.Tx, user *User) error {
 	return nil
 }
 
-func (m UserModel) GetByEmail(email string) (*User, error) { return nil, nil }
+func (m UserModel) GetByEmail(ctx context.Context, db DBTX, email string) (*User, error) {
+	query := `
+        SELECT id, email, password_hash, first_name, last_name, auth_provider, email_verified,
+               degree_discipline, graduation_year, target_industries, preferred_locations,
+               preferences, version, created_at, updated_at
+        FROM app_user
+        WHERE email = $1`
+
+	user := &User{}
+	err := db.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password.hash,
+		&user.FirstName,
+		&user.LastName,
+		&user.AuthProvider,
+		&user.EmailVerified,
+		&user.DegreeDiscipline,
+		&user.GraduationYear,
+		&user.TargetIndustries,
+		&user.PreferredLocations,
+		&user.Preferences,
+		&user.Version,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return user, nil
+}
 
 func (m UserModel) Update(user *User) error { return nil }
 

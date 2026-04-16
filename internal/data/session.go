@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -21,14 +20,14 @@ type SessionModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m SessionModel) Create(ctx context.Context, tx pgx.Tx, userID, ipAddress, userAgent string) (*Session, error) {
+func (m SessionModel) Create(ctx context.Context, db DBTX, userID, ipAddress, userAgent string) (*Session, error) {
 	query := `
-		INSERT INTO session (user_id, ip_address, user_agent)
-		VALUES ($1, $2, $3)
-		RETURNING id, user_id, ip_address, user_agent, created_at, expires_at`
+        INSERT INTO session (user_id, ip_address, user_agent)
+        VALUES ($1, $2, $3)
+        RETURNING id, user_id, ip_address, user_agent, created_at, expires_at`
 
 	session := &Session{}
-	err := tx.QueryRow(ctx, query, userID, ipAddress, userAgent).Scan(
+	err := db.QueryRow(ctx, query, userID, ipAddress, userAgent).Scan(
 		&session.ID,
 		&session.UserID,
 		&session.IPAddress,

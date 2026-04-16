@@ -38,6 +38,7 @@ func (app *application) routes() http.Handler {
 
 	// auth
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/register", app.registerUserHandler)
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/login", app.loginUserHandler)
 
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
