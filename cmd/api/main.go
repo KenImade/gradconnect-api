@@ -10,6 +10,7 @@ import (
 
 	_ "api.gradconnect.com/cmd/api/docs" // swagger docs
 	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/mailer"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,11 +27,20 @@ type config struct {
 		maxIdleConns int
 		maxIdleTime  time.Duration
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 type application struct {
 	config config
+	db     *pgxpool.Pool
 	logger *slog.Logger
+	mailer *mailer.Mailer
 	models data.Models
 	wg     sync.WaitGroup
 }
@@ -56,13 +66,29 @@ func main() {
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "f111705a4bf447", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "eb96d8aef81e66", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "GradConnect <no-reply@gradconnect.ng>", "SMTP sender")
+
 	flag.Parse()
 
 	// logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// database
-	db, err := openDB(cfg)
+	db, err := openDB(cfg, logger)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	defer db.Close()
+
+	logger.Info("database connection pool established")
+
+	mailer, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
@@ -71,9 +97,13 @@ func main() {
 	// initialise application
 	app := &application{
 		config: cfg,
+		db:     db,
 		logger: logger,
+		mailer: mailer,
 		models: data.NewModels(db),
 	}
+
+	go app.runTaskWorker()
 
 	err = app.serve()
 	if err != nil {
@@ -83,7 +113,7 @@ func main() {
 
 }
 
-func openDB(cfg config) (*pgxpool.Pool, error) {
+func openDB(cfg config, logger *slog.Logger) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(cfg.db.dsn)
 	if err != nil {
 		return nil, err

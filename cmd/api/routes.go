@@ -36,6 +36,9 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/v1/opportunities", app.listOpportunitiesHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/opportunities/:slug", app.showOpportunityBySlugHandler)
 
+	// auth
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/register", app.registerUserHandler)
+
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
 

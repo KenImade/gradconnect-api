@@ -1,0 +1,131 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/validator"
+	"github.com/jackc/pgx/v5"
+)
+
+type registerUserInput struct {
+	FirstName          string          `json:"first_name" example:"John"`
+	LastName           string          `json:"last_name" example:"Doe"`
+	Email              string          `json:"email" example:"john@example.com"`
+	Password           string          `json:"password" example:"pa55word"`
+	DegreeDiscipline   *string         `json:"degree_discipline" example:"Computer Science"`
+	GraduationYear     *int            `json:"graduation_year" example:"2025"`
+	TargetIndustries   []string        `json:"target_industries" example:"[\"Finance\", \"Tech\"]"`
+	PreferredLocations []string        `json:"preferred_locations" example:"[\"Lagos\", \"Abuja\"]"`
+	Preferences        json.RawMessage `json:"preferences" swaggertype:"object"`
+}
+
+// registerUserHandler godoc
+// @Summary      Register a new user
+// @Description  Create a new user account, assign default permissions, and queue an activation email.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      registerUserInput  true  "User Registration Details"
+// @Success      201   {object}  data.User
+// @Failure      400   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router      /auth/register [post]
+func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	var input registerUserInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	user := &data.User{
+		Email:              input.Email,
+		FirstName:          input.FirstName,
+		LastName:           input.LastName,
+		AuthProvider:       "email",
+		EmailVerified:      false,
+		DegreeDiscipline:   input.DegreeDiscipline,
+		GraduationYear:     input.GraduationYear,
+		TargetIndustries:   input.TargetIndustries,
+		PreferredLocations: input.PreferredLocations,
+		Preferences:        input.Preferences,
+	}
+
+	err = user.Password.Set(input.Password)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+
+	if data.ValidateUser(v, user); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	var token *data.Token
+
+	// --- TRANSACTION START ---
+	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		// 1. Insert the user
+		if err := app.models.Users.Insert(r.Context(), tx, user); err != nil {
+			return err
+		}
+
+		// 2. Add default permissions
+		permissions := []string{"review:submit", "review:edit"}
+		if err := app.models.Permissions.AddForUser(r.Context(), tx, user.ID, permissions...); err != nil {
+			return err
+		}
+
+		// 3. Create activation token (Atomic with User creation)
+		var err error
+		token, err = app.models.Tokens.New(r.Context(), tx, user.ID, 24*time.Hour, data.ScopeActivation)
+		if err != nil {
+			return err
+		}
+
+		// 4. Queue the Welcome Email Task
+		taskPayload := map[string]any{
+			"user_email":       user.Email,
+			"first_name":       user.FirstName,
+			"activation_token": token.Plaintext,
+		}
+
+		return app.models.Tasks.Insert(r.Context(), tx, "email:welcome", taskPayload)
+	})
+	// --- TRANSACTION END ---
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrDuplicateEmail):
+			v.AddError("email", "a user with this email address already exists")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/api/v1/users/%s", user.ID))
+	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {}
+
+func (app *application) updaterUserHandler(w http.ResponseWriter, r *http.Request) {}
+
+func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {}

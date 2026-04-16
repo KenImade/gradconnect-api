@@ -15,7 +15,11 @@ type Models struct {
 	Assessments   AssessmentModel
 	Employers     EmployerModel
 	Opportunities OpportunityModel
+	Permissions   PermissionModel
 	Reviews       ReviewModel
+	Tasks         TaskModel
+	Tokens        TokenModel
+	Users         UserModel
 }
 
 func NewModels(db *pgxpool.Pool) Models {
@@ -23,6 +27,10 @@ func NewModels(db *pgxpool.Pool) Models {
 		Assessments:   AssessmentModel{DB: db},
 		Employers:     EmployerModel{DB: db},
 		Opportunities: OpportunityModel{DB: db},
+		Permissions:   PermissionModel{DB: db},
 		Reviews:       ReviewModel{DB: db},
+		Tasks:         TaskModel{DB: db},
+		Tokens:        TokenModel{DB: db},
+		Users:         UserModel{DB: db},
 	}
 }
