@@ -49,3 +49,14 @@ func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.Han
 		next(w, r)
 	}
 }
+
+func (app *application) requireVerifiedUser(next http.HandlerFunc) http.HandlerFunc {
+	return app.requireAuthenticatedUser(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+		if !user.EmailVerified {
+			app.errorResponse(w, r, http.StatusForbidden, "your email must be verified to access this resource")
+			return
+		}
+		next(w, r)
+	})
+}

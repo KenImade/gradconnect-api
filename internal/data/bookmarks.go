@@ -2,11 +2,15 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrDuplicateBookmark = errors.New("bookmark already exists")
 
 type OpportunityStub struct {
 	ID            string       `json:"id"`
@@ -24,6 +28,12 @@ type Bookmark struct {
 	UserID      string          `json:"-"`
 	CreatedAt   time.Time       `json:"created_at"`
 	Opportunity OpportunityStub `json:"opportunity"`
+}
+
+type BookmarkCreateResponse struct {
+	ID            string    `json:"id"`
+	OpportunityID string    `json:"opportunity_id"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func NewOpportunityStub(id, title, slug, oppType string, deadline time.Time, employer EmployerStub) OpportunityStub {
@@ -45,6 +55,33 @@ func NewOpportunityStub(id, title, slug, oppType string, deadline time.Time, emp
 
 type BookmarkModel struct {
 	DB *pgxpool.Pool
+}
+
+func (m BookmarkModel) Create(ctx context.Context, db DBTX, userID, opportunityID string) (*Bookmark, error) {
+	query := `
+        INSERT INTO bookmark (user_id, opportunity_id)
+        VALUES ($1, $2)
+        RETURNING id, created_at`
+
+	bookmark := &Bookmark{
+		UserID: userID,
+	}
+
+	err := db.QueryRow(ctx, query, userID, opportunityID).Scan(&bookmark.ID, &bookmark.CreatedAt)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23505": // unique_violation
+				return nil, ErrDuplicateBookmark
+			case "23503": // foreign_key_violation — opportunity doesn't exist
+				return nil, ErrRecordNotFound
+			}
+		}
+		return nil, err
+	}
+
+	return bookmark, nil
 }
 
 func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string, filters Filters) ([]Bookmark, Metadata, error) {
