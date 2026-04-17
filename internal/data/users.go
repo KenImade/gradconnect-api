@@ -18,7 +18,7 @@ var AnonymousUser = &User{}
 type User struct {
 	ID                 string          `json:"id"`
 	Email              string          `json:"email"`
-	Password           password        `json:"-"`
+	Password           Password        `json:"-"`
 	FirstName          string          `json:"first_name"`
 	LastName           string          `json:"last_name"`
 	AuthProvider       string          `json:"auth_provider"`
@@ -37,12 +37,12 @@ func (u *User) IsAnonymous() bool {
 	return u == AnonymousUser
 }
 
-type password struct {
+type Password struct {
 	plaintext *string
 	hash      []byte
 }
 
-func (p *password) Set(plaintextPassword string) error {
+func (p *Password) Set(plaintextPassword string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (p *password) Set(plaintextPassword string) error {
 	return nil
 }
 
-func (p *password) Matches(plaintextPassword string) (bool, error) {
+func (p *Password) Matches(plaintextPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
 	if err != nil {
 		switch {
@@ -274,8 +274,6 @@ func (m UserModel) Update(ctx context.Context, db DBTX, user *User) error {
 	return nil
 }
 
-func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) { return nil, nil }
-
 func (m UserModel) Activate(ctx context.Context, db DBTX, userID string) error {
 	query := `
         UPDATE app_user
@@ -284,4 +282,18 @@ func (m UserModel) Activate(ctx context.Context, db DBTX, userID string) error {
 
 	_, err := db.Exec(ctx, query, userID)
 	return err
+}
+
+func (m UserModel) UpdatePassword(ctx context.Context, db DBTX, userID string, hash []byte) error {
+	query := `
+        UPDATE app_user
+        SET password_hash = $1, updated_at = now(), version = version + 1
+        WHERE id = $2`
+
+	_, err := db.Exec(ctx, query, hash, userID)
+	return err
+}
+
+func HashPassword(plaintext string) ([]byte, error) {
+	return bcrypt.GenerateFromPassword([]byte(plaintext), 12)
 }

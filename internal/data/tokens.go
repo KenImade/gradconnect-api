@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"api.gradconnect.com/internal/validator"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -52,6 +53,11 @@ func generateToken(userID string, ttl time.Duration, scope string) (*Token, erro
 
 type TokenModel struct {
 	DB *pgxpool.Pool
+}
+
+func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
+	v.Check(tokenPlaintext != "", "token", "must be provided")
+	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
 }
 
 func (m TokenModel) GetUserForToken(ctx context.Context, db DBTX, scope, tokenPlaintext string) (string, error) {

@@ -234,8 +234,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	tokenPlaintext := r.URL.Query().Get("token")
 
 	v := validator.New()
-	v.Check(tokenPlaintext != "", "token", "must be provided")
-	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
+	data.ValidateTokenPlaintext(v, tokenPlaintext)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
@@ -596,6 +595,82 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	err = app.writeJSON(w, http.StatusOK, response, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+type resetPasswordInput struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+// resetPasswordHandler godoc
+// @Summary      Reset password using a reset token
+// @Description  Validates a password reset token and sets a new password. Revokes all existing sessions.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      resetPasswordInput  true  "Reset token and new password"
+// @Success      200   {object}  envelope
+// @Failure      400   {object}  ErrorResponse  "Invalid or expired token"
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /auth/reset-password [post]
+func (app *application) resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	var input resetPasswordInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateTokenPlaintext(v, input.Token)
+	data.ValidatePasswordPlaintext(v, input.NewPassword)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	hash, err := data.HashPassword(input.NewPassword)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		userID, err := app.models.Tokens.GetUserForToken(r.Context(), tx, data.ScopePasswordReset, input.Token)
+		if err != nil {
+			return err
+		}
+
+		if err := app.models.Users.UpdatePassword(r.Context(), tx, userID, hash); err != nil {
+			return err
+		}
+
+		if err := app.models.Tokens.DeleteAllForUser(r.Context(), tx, data.ScopePasswordReset, userID); err != nil {
+			return err
+		}
+
+		return app.models.Sessions.DeleteAllForUser(r.Context(), tx, userID)
+	})
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.errorResponse(w, r, http.StatusBadRequest, "invalid or expired reset token")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	response := envelope{"data": envelope{
+		"message": "Password updated successfully. Please log in.",
+	}}
 	err = app.writeJSON(w, http.StatusOK, response, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

@@ -75,3 +75,8 @@ func (m SessionModel) Delete(ctx context.Context, db DBTX, id string) error {
 	_, err := db.Exec(ctx, "DELETE FROM session WHERE id = $1", id)
 	return err
 }
+
+func (m SessionModel) DeleteAllForUser(ctx context.Context, db DBTX, userID string) error {
+	_, err := db.Exec(ctx, "DELETE FROM session WHERE user_id = $1", userID)
+	return err
+}
