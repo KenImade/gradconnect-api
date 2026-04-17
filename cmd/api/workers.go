@@ -100,6 +100,17 @@ func (app *application) processTask(jobType string, payload []byte) error {
 		}
 		return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
 
+	case "email:password_reset":
+		var data struct {
+			Email      string `json:"user_email"`
+			FirstName  string `json:"first_name"`
+			ResetToken string `json:"reset_token"`
+		}
+		if err := json.Unmarshal(payload, &data); err != nil {
+			return err
+		}
+		return app.mailer.Send(data.Email, "password_reset.tmpl", data)
+
 	default:
 		return fmt.Errorf("unknown job type: %s", jobType)
 	}

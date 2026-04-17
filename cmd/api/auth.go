@@ -523,3 +523,81 @@ func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+type forgotPasswordInput struct {
+	Email string `json:"email"`
+}
+
+// forgotPasswordHandler godoc
+// @Summary      Request a password reset email
+// @Description  Sends a password reset email if an account with the given email exists. Always returns 200 to prevent email enumeration.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      forgotPasswordInput  true  "Email address"
+// @Success      200   {object}  envelope
+// @Failure      400   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /auth/forgot-password [post]
+func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	var input forgotPasswordInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateEmail(v, input.Email)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	response := envelope{"data": envelope{
+		"message": "If an account with that email exists, a reset link has been sent.",
+	}}
+
+	user, err := app.models.Users.GetByEmail(r.Context(), app.db, input.Email)
+	if err != nil {
+		if errors.Is(err, data.ErrRecordNotFound) {
+			// Silently succeed to prevent email enumeration
+			app.writeJSON(w, http.StatusOK, response, nil)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Skip for non-email auth providers (Google users don't have passwords here)
+	if user.AuthProvider != "email" {
+		app.writeJSON(w, http.StatusOK, response, nil)
+		return
+	}
+
+	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		token, err := app.models.Tokens.New(r.Context(), tx, user.ID, 1*time.Hour, data.ScopePasswordReset)
+		if err != nil {
+			return err
+		}
+
+		taskPayload := map[string]any{
+			"user_email":  user.Email,
+			"first_name":  user.FirstName,
+			"reset_token": token.Plaintext,
+		}
+		return app.models.Tasks.Insert(r.Context(), tx, "email:password_reset", taskPayload)
+	})
+
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

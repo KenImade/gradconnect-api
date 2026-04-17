@@ -44,6 +44,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/google", app.googleAuthHandler)
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/login", app.loginUserHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/auth/verify-email", app.activateUserHandler)
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/forgot-password", app.forgotPasswordHandler)
 
 	// Authenticated routes
 

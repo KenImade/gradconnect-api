@@ -73,7 +73,7 @@ func main() {
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "SMTP port")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", "f111705a4bf447", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "eb96d8aef81e66", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "GradConnect <no-reply@gradconnect.ng>", "SMTP sender")
