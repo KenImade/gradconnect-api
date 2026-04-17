@@ -1,11 +1,65 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/validator"
 )
+
+// addApplicationHandler godoc
+// @Summary      Add an opportunity to tracked applications
+// @Description  Creates a new application tracker entry for the authenticated user.
+// @Tags         ApplicationTrackers
+// @Accept       json
+// @Produce      json
+// @Param        body  body      data.CreateApplicationInput  true  "Application to track"
+// @Success      201   {object}  envelope
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      403   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse  "Already tracking this opportunity"
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /me/applications [post]
+func (app *application) addApplicationHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.CreateApplicationInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateCreateApplicationInput(v, input)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	user := app.contextGetUser(r)
+
+	application, err := app.models.ApplicationTracker.Add(r.Context(), app.db, user.ID, input)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrDuplicateApplication):
+			app.errorResponse(w, r, http.StatusConflict, "you are already tracking this opportunity")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"data": application}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
 
 // listApplicationsHandler godoc
 // @Summary      List the current user's application tracker entries
@@ -24,25 +78,20 @@ import (
 // @Router       /me/applications [get]
 func (app *application) listApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 	var filters data.Filters
-	var status string
 
 	v := validator.New()
 	qs := r.URL.Query()
 
-	status = app.readString(qs, "status", "")
+	status := app.readString(qs, "status", "")
 	filters.Page = app.readInt(qs, "page", 1, v)
 	filters.PageSize = app.readInt(qs, "page_size", 50, v)
 	filters.Sort = app.readString(qs, "sort", "-updated_at")
 	filters.SortSafeList = []string{"updated_at", "created_at", "-updated_at", "-created_at"}
 
-	if status != "" {
-		v.Check(validator.PermittedValue(data.ApplicationStatus(status),
-			data.StatusInterested, data.StatusApplied, data.StatusAssessment,
-			data.StatusInterview, data.StatusOffer, data.StatusRejected,
-		), "status", "invalid status")
-	}
+	data.ValidateApplicationStatusFilter(v, status)
+	data.ValidateFilters(v, filters)
 
-	if data.ValidateFilters(v, filters); !v.Valid() {
+	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -55,9 +104,7 @@ func (app *application) listApplicationsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	response := envelope{"data": applications, "pagination": metadata}
-
-	err = app.writeJSON(w, http.StatusOK, response, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": applications, "pagination": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
