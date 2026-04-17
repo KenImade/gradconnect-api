@@ -11,6 +11,9 @@ import (
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/validator"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 )
 
 type registerUserInput struct {
@@ -324,6 +327,162 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"message": "verification email sent"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+type googleAuthInput struct {
+	Code string `json:"code"`
+}
+
+// googleAuthHandler godoc
+// @Summary      Authenticate with Google OAuth
+// @Description  Exchange a Google OAuth authorization code for a session. Creates a new user if one doesn't exist.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      googleAuthInput  true  "Google OAuth authorization code"
+// @Success      200   {object}  data.User  "Existing user logged in"
+// @Success      201   {object}  data.User  "New user created"
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /auth/google [post]
+func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
+	var input googleAuthInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Code == "" {
+		app.badRequestResponse(w, r, errors.New("authorization code is required"))
+		return
+	}
+
+	oauthConfig := oauth2.Config{
+		ClientID:     app.config.google.clientID,
+		ClientSecret: app.config.google.clientSecret,
+		RedirectURL:  app.config.google.redirectURL,
+		Scopes:       []string{"openid", "email", "profile"},
+		Endpoint:     google.Endpoint,
+	}
+
+	token, err := oauthConfig.Exchange(r.Context(), input.Code)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusUnauthorized, "failed to exchange authorization code")
+		return
+	}
+
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "no id_token in oauth response")
+		return
+	}
+
+	payload, err := idtoken.Validate(r.Context(), rawIDToken, app.config.google.clientID)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusUnauthorized, "invalid id_token")
+		return
+	}
+
+	email, _ := payload.Claims["email"].(string)
+	emailVerified, _ := payload.Claims["email_verified"].(bool)
+	givenName, _ := payload.Claims["given_name"].(string)
+	familyName, _ := payload.Claims["family_name"].(string)
+
+	if email == "" || !emailVerified {
+		app.errorResponse(w, r, http.StatusUnauthorized, "email not verified by google")
+		return
+	}
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	var user *data.User
+	var session *data.Session
+	isNewUser := false
+
+	// Check if user exists
+	user, err = app.models.Users.GetByEmail(r.Context(), app.db, email)
+	if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if errors.Is(err, data.ErrRecordNotFound) {
+		isNewUser = true
+
+		user = &data.User{
+			Email:         email,
+			FirstName:     givenName,
+			LastName:      familyName,
+			AuthProvider:  "google",
+			EmailVerified: true,
+		}
+
+		err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+			if err := app.models.Users.Insert(r.Context(), tx, user); err != nil {
+				return err
+			}
+
+			if err := app.models.Permissions.AddForUser(r.Context(), tx, user.ID, "review:submit", "review:edit"); err != nil {
+				return err
+			}
+
+			welcomePayload := map[string]any{
+				"user_email": user.Email,
+				"first_name": user.FirstName,
+			}
+			if err := app.models.Tasks.Insert(r.Context(), tx, "email:welcome", welcomePayload); err != nil {
+				return err
+			}
+
+			session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
+			return err
+		})
+
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrDuplicateEmail):
+				// Race condition — another request just created this user. Retry login path.
+				app.errorResponse(w, r, http.StatusConflict, "user creation conflict, please retry")
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+	} else {
+		// Existing user — guard against email/google account collision
+		if user.AuthProvider != "google" {
+			app.errorResponse(w, r, http.StatusConflict, "this email is registered with a different sign-in method")
+			return
+		}
+		session, err = app.models.Sessions.Create(r.Context(), app.db, user.ID, ip, r.UserAgent())
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    session.ID,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	status := http.StatusOK
+	if isNewUser {
+		status = http.StatusCreated
+	}
+
+	err = app.writeJSON(w, status, envelope{"data": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

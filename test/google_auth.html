@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head><title>OAuth Test</title></head>
+<body>
+    <button id="signin">Sign in with Google</button>
+    <pre id="result"></pre>
+
+    <script>
+        const CLIENT_ID = '522466790021-q29p5hhcfenk8qrrr5dq5mskujduevq6.apps.googleusercontent.com';
+        const REDIRECT_URI = 'http://localhost:3000';
+
+        document.getElementById('signin').onclick = () => {
+            const params = new URLSearchParams({
+                client_id: CLIENT_ID,
+                redirect_uri: REDIRECT_URI,
+                response_type: 'code',
+                scope: 'openid email profile',
+                access_type: 'offline',
+                prompt: 'consent',
+            });
+            window.location = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+        };
+
+        // Handle the redirect back
+        const code = new URLSearchParams(window.location.search).get('code');
+        if (code) {
+            fetch('http://localhost:4000/api/v1/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ code })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            });
+        }
+    </script>
+</body>
+</html>

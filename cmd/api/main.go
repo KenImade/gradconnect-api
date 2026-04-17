@@ -34,6 +34,11 @@ type config struct {
 		password string
 		sender   string
 	}
+	google struct {
+		clientID     string
+		clientSecret string
+		redirectURL  string
+	}
 	frontendURL string
 }
 
@@ -74,6 +79,10 @@ func main() {
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "GradConnect <no-reply@gradconnect.ng>", "SMTP sender")
 
 	flag.StringVar(&cfg.frontendURL, "frontend-url", "localhost:4000", "Frontend URL")
+
+	flag.StringVar(&cfg.google.clientID, "google-client-id", "522466790021-q29p5hhcfenk8qrrr5dq5mskujduevq6.apps.googleusercontent.com", "Google OAuth client ID")
+	flag.StringVar(&cfg.google.clientSecret, "google-client-secret", "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", "Google OAuth client secret")
+	flag.StringVar(&cfg.google.redirectURL, "google-redirect-url", "http://localhost:3000", "Google OAuth redirect URL")
 
 	flag.Parse()
 

@@ -41,6 +41,7 @@ func (app *application) routes() http.Handler {
 
 	// auth
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/register", app.registerUserHandler)
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/google", app.googleAuthHandler)
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/login", app.loginUserHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/auth/verify-email", app.activateUserHandler)
 
