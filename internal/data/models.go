@@ -21,29 +21,31 @@ type DBTX interface {
 }
 
 type Models struct {
-	Assessments   AssessmentModel
-	Bookmarks     BookmarkModel
-	Employers     EmployerModel
-	Opportunities OpportunityModel
-	Permissions   PermissionModel
-	Reviews       ReviewModel
-	Sessions      SessionModel
-	Tasks         TaskModel
-	Tokens        TokenModel
-	Users         UserModel
+	ApplicationTracker ApplicationTrackerModel
+	Assessments        AssessmentModel
+	Bookmarks          BookmarkModel
+	Employers          EmployerModel
+	Opportunities      OpportunityModel
+	Permissions        PermissionModel
+	Reviews            ReviewModel
+	Sessions           SessionModel
+	Tasks              TaskModel
+	Tokens             TokenModel
+	Users              UserModel
 }
 
 func NewModels(db *pgxpool.Pool) Models {
 	return Models{
-		Assessments:   AssessmentModel{DB: db},
-		Bookmarks:     BookmarkModel{DB: db},
-		Employers:     EmployerModel{DB: db},
-		Opportunities: OpportunityModel{DB: db},
-		Permissions:   PermissionModel{DB: db},
-		Reviews:       ReviewModel{DB: db},
-		Sessions:      SessionModel{DB: db},
-		Tasks:         TaskModel{DB: db},
-		Tokens:        TokenModel{DB: db},
-		Users:         UserModel{DB: db},
+		ApplicationTracker: ApplicationTrackerModel{DB: db},
+		Assessments:        AssessmentModel{DB: db},
+		Bookmarks:          BookmarkModel{DB: db},
+		Employers:          EmployerModel{DB: db},
+		Opportunities:      OpportunityModel{DB: db},
+		Permissions:        PermissionModel{DB: db},
+		Reviews:            ReviewModel{DB: db},
+		Sessions:           SessionModel{DB: db},
+		Tasks:              TaskModel{DB: db},
+		Tokens:             TokenModel{DB: db},
+		Users:              UserModel{DB: db},
 	}
 }
