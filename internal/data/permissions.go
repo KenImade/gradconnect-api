@@ -19,33 +19,27 @@ type PermissionModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m PermissionModel) GetAllForUser(userID string) (Permissions, error) {
+func (m PermissionModel) GetAllForUser(ctx context.Context, db DBTX, userID string) ([]string, error) {
 	query := `
         SELECT DISTINCT permission
         FROM user_permission
         WHERE user_id = $1`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.Query(ctx, query, userID)
+	rows, err := db.Query(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var permissions Permissions
-
+	var permissions []string
 	for rows.Next() {
 		var permission string
-		err := rows.Scan(&permission)
-		if err != nil {
+		if err := rows.Scan(&permission); err != nil {
 			return nil, err
 		}
 		permissions = append(permissions, permission)
 	}
-
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
