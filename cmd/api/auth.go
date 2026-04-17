@@ -487,3 +487,39 @@ func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+// logoutUserHandler godoc
+// @Summary      Log out the current user
+// @Description  Delete the current session and clear the session cookie.
+// @Tags         Auth
+// @Produce      json
+// @Success      204
+// @Failure      401  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /auth/logout [post]
+func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		app.authenticationRequiredResponse(w, r)
+		return
+	}
+
+	err = app.models.Sessions.Delete(r.Context(), app.db, cookie.Value)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   app.config.env == "production",
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}

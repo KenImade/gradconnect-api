@@ -71,7 +71,7 @@ func (m SessionModel) GetByID(ctx context.Context, db DBTX, id string) (*Session
 	return session, nil
 }
 
-func (m SessionModel) Delete(ctx context.Context, id string) error {
-	_, err := m.DB.Exec(ctx, "DELETE FROM session WHERE id = $1", id)
+func (m SessionModel) Delete(ctx context.Context, db DBTX, id string) error {
+	_, err := db.Exec(ctx, "DELETE FROM session WHERE id = $1", id)
 	return err
 }

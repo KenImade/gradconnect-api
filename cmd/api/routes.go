@@ -48,6 +48,8 @@ func (app *application) routes() http.Handler {
 	// Authenticated routes
 
 	// auth
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/logout",
+		app.requireAuthenticatedUser(app.logoutUserHandler))
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/resend-verification",
 		app.requireAuthenticatedUser(app.resendVerificationEmailHandler))
 
