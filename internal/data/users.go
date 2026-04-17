@@ -234,7 +234,45 @@ func (m UserModel) GetByID(ctx context.Context, db DBTX, id string) (*User, erro
 	return user, nil
 }
 
-func (m UserModel) Update(user *User) error { return nil }
+func (m UserModel) Update(ctx context.Context, db DBTX, user *User) error {
+	query := `
+        UPDATE app_user
+        SET first_name = $1, last_name = $2, email_verified = $3,
+            degree_discipline = $4, graduation_year = $5,
+            target_industries = $6, preferred_locations = $7,
+            preferences = $8, updated_at = now(), version = version + 1
+        WHERE id = $9 AND version = $10
+        RETURNING version`
+
+	args := []any{
+		user.FirstName,
+		user.LastName,
+		user.EmailVerified,
+		user.DegreeDiscipline,
+		user.GraduationYear,
+		user.TargetIndustries,
+		user.PreferredLocations,
+		user.Preferences,
+		user.ID,
+		user.Version,
+	}
+
+	err := db.QueryRow(ctx, query, args...).Scan(&user.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrEditConflict
+		default:
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return ErrDuplicateEmail
+			}
+			return err
+		}
+	}
+
+	return nil
+}
 
 func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) { return nil, nil }
 

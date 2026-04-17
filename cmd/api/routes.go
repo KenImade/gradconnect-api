@@ -50,8 +50,11 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/resend-verification",
 		app.requireAuthenticatedUser(app.resendVerificationEmailHandler))
 
+	// me
 	router.HandlerFunc(http.MethodGet, "/api/v1/me",
 		app.requireAuthenticatedUser(app.getCurrentUserHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/v1/me",
+		app.requireAuthenticatedUser(app.updateUserHandler))
 
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)

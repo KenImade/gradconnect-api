@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
+	"api.gradconnect.com/internal/data"
 	_ "api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/validator"
 )
 
 type currentUserResponse struct {
@@ -66,6 +69,88 @@ func (app *application) getCurrentUserHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (app *application) updaterUserHandler(w http.ResponseWriter, r *http.Request) {}
+type updateUserInput struct {
+	FirstName          *string         `json:"first_name"`
+	LastName           *string         `json:"last_name"`
+	DegreeDiscipline   *string         `json:"degree_discipline"`
+	GraduationYear     *int            `json:"graduation_year"`
+	TargetIndustries   *[]string       `json:"target_industries"`
+	PreferredLocations *[]string       `json:"preferred_locations"`
+	Preferences        json.RawMessage `json:"preferences"`
+}
+
+// updateUserHandler godoc
+// @Summary      Update the current user's profile
+// @Description  Update the authenticated user's profile fields. Email cannot be changed.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      updateUserInput  true  "Profile fields to update"
+// @Success      200   {object}  data.User
+// @Failure      400   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse  "Edit conflict"
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /me [patch]
+func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	var input updateUserInput
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	user := app.contextGetUser(r)
+
+	if input.FirstName != nil {
+		user.FirstName = *input.FirstName
+	}
+
+	if input.LastName != nil {
+		user.LastName = *input.LastName
+	}
+
+	if input.DegreeDiscipline != nil {
+		user.DegreeDiscipline = input.DegreeDiscipline
+	}
+
+	if input.GraduationYear != nil {
+		user.GraduationYear = input.GraduationYear
+	}
+
+	if input.TargetIndustries != nil {
+		user.TargetIndustries = *input.TargetIndustries
+	}
+	if input.PreferredLocations != nil {
+		user.PreferredLocations = *input.PreferredLocations
+	}
+	if input.Preferences != nil {
+		user.Preferences = input.Preferences
+	}
+
+	v := validator.New()
+	if data.ValidateUser(v, user); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.models.Users.Update(r.Context(), app.db, user)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.errorResponse(w, r, http.StatusConflict, "edit conflict, please retry")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": user}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
 
 func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {}
