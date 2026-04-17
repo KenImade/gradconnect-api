@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS opportunity (
     source_url VARCHAR(512),
     search_vector TSVECTOR NOT NULL DEFAULT ''::tsvector,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_employer_title_year UNIQUE (employer_id, title, intake_year)
 );
 

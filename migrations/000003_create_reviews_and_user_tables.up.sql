@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS review (
     degree_discipline VARCHAR(255),
     university VARCHAR(255),
     status review_status_type NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_review_employer_status ON review(employer_id, status);

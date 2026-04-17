@@ -240,7 +240,7 @@ func (m UserModel) Update(ctx context.Context, db DBTX, user *User) error {
         SET first_name = $1, last_name = $2, email_verified = $3,
             degree_discipline = $4, graduation_year = $5,
             target_industries = $6, preferred_locations = $7,
-            preferences = $8, updated_at = now(), version = version + 1
+            preferences = $8, version = version + 1
         WHERE id = $9 AND version = $10
         RETURNING version`
 
@@ -277,7 +277,7 @@ func (m UserModel) Update(ctx context.Context, db DBTX, user *User) error {
 func (m UserModel) Activate(ctx context.Context, db DBTX, userID string) error {
 	query := `
         UPDATE app_user
-        SET email_verified = true, updated_at = now(), version = version + 1
+        SET email_verified = true, version = version + 1
         WHERE id = $1`
 
 	_, err := db.Exec(ctx, query, userID)
@@ -287,7 +287,7 @@ func (m UserModel) Activate(ctx context.Context, db DBTX, userID string) error {
 func (m UserModel) UpdatePassword(ctx context.Context, db DBTX, userID string, hash []byte) error {
 	query := `
         UPDATE app_user
-        SET password_hash = $1, updated_at = now(), version = version + 1
+        SET password_hash = $1, version = version + 1
         WHERE id = $2`
 
 	_, err := db.Exec(ctx, query, hash, userID)
