@@ -116,3 +116,38 @@ func (app *application) addBookmarkHandler(w http.ResponseWriter, r *http.Reques
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+// removeBookmarkHandler godoc
+// @Summary      Remove a bookmark
+// @Description  Delete a bookmark belonging to the authenticated user.
+// @Tags         Bookmarks
+// @Produce      json
+// @Param        id  path  string  true  "Bookmark ID"
+// @Success      204
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /me/bookmarks/{id} [delete]
+func (app *application) removeBookmarkHandler(w http.ResponseWriter, r *http.Request) {
+	bookmarkID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	user := app.contextGetUser(r)
+
+	err = app.models.Bookmarks.Delete(r.Context(), app.db, bookmarkID, user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

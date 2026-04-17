@@ -84,6 +84,23 @@ func (m BookmarkModel) Create(ctx context.Context, db DBTX, userID, opportunityI
 	return bookmark, nil
 }
 
+func (m BookmarkModel) Delete(ctx context.Context, db DBTX, bookmarkID, userID string) error {
+	query := `
+        DELETE FROM bookmark
+        WHERE id = $1 AND user_id = $2`
+
+	result, err := db.Exec(ctx, query, bookmarkID, userID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}
+
 func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string, filters Filters) ([]Bookmark, Metadata, error) {
 	query := fmt.Sprintf(`
         SELECT b.id, b.created_at,

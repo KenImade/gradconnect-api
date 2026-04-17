@@ -66,6 +66,8 @@ func (app *application) routes() http.Handler {
 		app.requireVerifiedUser(app.listBookmarksHandler))
 	router.HandlerFunc(http.MethodPost, "/api/v1/me/bookmarks",
 		app.requireVerifiedUser(app.addBookmarkHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/v1/me/bookmarks/:id",
+		app.requireVerifiedUser(app.removeBookmarkHandler))
 
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
