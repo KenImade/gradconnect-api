@@ -60,6 +60,8 @@ func (app *application) routes() http.Handler {
 		app.requireAuthenticatedUser(app.getCurrentUserHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/me",
 		app.requireAuthenticatedUser(app.updateUserHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/me/bookmarks",
+		app.requireAuthenticatedUser(app.getCurrentUserBookmarksHandler))
 
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)

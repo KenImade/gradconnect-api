@@ -22,6 +22,7 @@ type DBTX interface {
 
 type Models struct {
 	Assessments   AssessmentModel
+	Bookmarks     BookmarkModel
 	Employers     EmployerModel
 	Opportunities OpportunityModel
 	Permissions   PermissionModel
@@ -35,6 +36,7 @@ type Models struct {
 func NewModels(db *pgxpool.Pool) Models {
 	return Models{
 		Assessments:   AssessmentModel{DB: db},
+		Bookmarks:     BookmarkModel{DB: db},
 		Employers:     EmployerModel{DB: db},
 		Opportunities: OpportunityModel{DB: db},
 		Permissions:   PermissionModel{DB: db},
