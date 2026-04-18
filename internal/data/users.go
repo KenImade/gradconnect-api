@@ -15,6 +15,7 @@ import (
 
 var AnonymousUser = &User{}
 
+// DB Model
 type User struct {
 	ID                 string          `json:"id"`
 	Email              string          `json:"email"`
@@ -33,13 +34,73 @@ type User struct {
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
-func (u *User) IsAnonymous() bool {
-	return u == AnonymousUser
-}
-
 type Password struct {
 	plaintext *string
 	hash      []byte
+}
+
+// Inputs
+
+type CreateUserInput struct {
+	FirstName          string          `json:"first_name" example:"John"`
+	LastName           string          `json:"last_name" example:"Doe"`
+	Email              string          `json:"email" example:"john@example.com"`
+	Password           string          `json:"password" example:"pa55word"`
+	DegreeDiscipline   *string         `json:"degree_discipline" example:"Computer Science"`
+	GraduationYear     *int            `json:"graduation_year" example:"2025"`
+	TargetIndustries   []string        `json:"target_industries" example:"[\"Finance\", \"Tech\"]"`
+	PreferredLocations []string        `json:"preferred_locations" example:"[\"Lagos\", \"Abuja\"]"`
+	Preferences        json.RawMessage `json:"preferences" swaggertype:"object"`
+}
+
+type LoginUserInput struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UpdateUserInput struct {
+	FirstName          *string         `json:"first_name"`
+	LastName           *string         `json:"last_name"`
+	DegreeDiscipline   *string         `json:"degree_discipline"`
+	GraduationYear     *int            `json:"graduation_year"`
+	TargetIndustries   *[]string       `json:"target_industries"`
+	PreferredLocations *[]string       `json:"preferred_locations"`
+	Preferences        json.RawMessage `json:"preferences"`
+}
+
+type GoogleAuthInput struct {
+	Code string `json:"code"`
+}
+
+type ForgotPasswordInput struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordInput struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+// Responses
+type CurrentUserResponse struct {
+	ID                 string          `json:"id"`
+	Email              string          `json:"email"`
+	Name               string          `json:"name"`
+	AuthProvider       string          `json:"auth_provider"`
+	EmailVerified      bool            `json:"email_verified"`
+	DegreeDiscipline   *string         `json:"degree_discipline"`
+	GraduationYear     *int            `json:"graduation_year"`
+	TargetIndustries   []string        `json:"target_industries"`
+	PreferredLocations []string        `json:"preferred_locations"`
+	Preferences        json.RawMessage `json:"preferences"`
+	Version            int             `json:"version"`
+	Permissions        []string        `json:"permissions"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
+}
+
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 func (p *Password) Set(plaintextPassword string) error {
@@ -79,36 +140,57 @@ func ValidatePasswordPlaintext(v *validator.Validator, password string) {
 	v.Check(len(password) <= 72, "password", "must not be more than 72 bytes long")
 }
 
-func ValidateUser(v *validator.Validator, user *User) {
-	v.Check(user.FirstName != "", "first_name", "first name must be provided")
-	v.Check(user.LastName != "", "last_name", "last name must be provided")
-	v.Check(len(user.FirstName) <= 255, "first_name", "must not be more than 255 characters")
-	v.Check(len(user.LastName) <= 255, "last_name", "must not be more than 255 characters")
+func ValidateCreateUserInput(v *validator.Validator, input CreateUserInput) {
+	v.Check(input.FirstName != "", "first_name", "must be provided")
+	v.Check(input.LastName != "", "last_name", "must be provided")
+	v.Check(len(input.FirstName) <= 255, "first_name", "must not be more than 255 characters")
+	v.Check(len(input.LastName) <= 255, "last_name", "must not be more than 255 characters")
 
-	ValidateEmail(v, user.Email)
+	ValidateEmail(v, input.Email)
+	ValidatePasswordPlaintext(v, input.Password)
 
-	if user.Password.plaintext != nil {
-		ValidatePasswordPlaintext(v, *user.Password.plaintext)
-	}
-
-	if user.AuthProvider == "email" && user.Password.hash == nil {
-		v.AddError("password", "must be provided for email users")
-	}
-
-	v.Check(validator.PermittedValue(user.AuthProvider, "email", "google"), "auth_provider", "must be email or google")
-
-	if user.GraduationYear != nil {
+	if input.GraduationYear != nil {
 		currentYear := time.Now().Year()
-		v.Check(*user.GraduationYear >= 1990, "graduation_year", "must be after 1990")
-		v.Check(*user.GraduationYear <= currentYear+6, "graduation_year", "must not be more than 6 years in the future")
+		v.Check(*input.GraduationYear >= 1990, "graduation_year", "must be after 1990")
+		v.Check(*input.GraduationYear <= currentYear+6, "graduation_year", "must not be more than 6 years in the future")
 	}
 
-	if user.DegreeDiscipline != nil {
-		v.Check(len(*user.DegreeDiscipline) <= 255, "degree_discipline", "must not be more than 255 characters")
+	if input.DegreeDiscipline != nil {
+		v.Check(len(*input.DegreeDiscipline) <= 255, "degree_discipline", "must not be more than 255 characters")
 	}
 
-	v.Check(len(user.TargetIndustries) <= 20, "target_industries", "must not have more than 20 industries")
-	v.Check(len(user.PreferredLocations) <= 20, "preferred_locations", "must not have more than 20 locations")
+	v.Check(len(input.TargetIndustries) <= 20, "target_industries", "must not have more than 20 industries")
+	v.Check(len(input.PreferredLocations) <= 20, "preferred_locations", "must not have more than 20 locations")
+}
+
+func ValidateUpdateUserInput(v *validator.Validator, input UpdateUserInput) {
+	if input.FirstName != nil {
+		v.Check(*input.FirstName != "", "first_name", "must not be empty")
+		v.Check(len(*input.FirstName) <= 255, "first_name", "must not be more than 255 characters")
+	}
+	if input.LastName != nil {
+		v.Check(*input.LastName != "", "last_name", "must not be empty")
+		v.Check(len(*input.LastName) <= 255, "last_name", "must not be more than 255 characters")
+	}
+	if input.GraduationYear != nil {
+		currentYear := time.Now().Year()
+		v.Check(*input.GraduationYear >= 1990, "graduation_year", "must be after 1990")
+		v.Check(*input.GraduationYear <= currentYear+6, "graduation_year", "must not be more than 6 years in the future")
+	}
+	if input.DegreeDiscipline != nil {
+		v.Check(len(*input.DegreeDiscipline) <= 255, "degree_discipline", "must not be more than 255 characters")
+	}
+	if input.TargetIndustries != nil {
+		v.Check(len(*input.TargetIndustries) <= 20, "target_industries", "must not have more than 20 industries")
+	}
+	if input.PreferredLocations != nil {
+		v.Check(len(*input.PreferredLocations) <= 20, "preferred_locations", "must not have more than 20 locations")
+	}
+}
+
+func ValidateLoginUserInput(v *validator.Validator, user LoginUserInput) {
+	ValidateEmail(v, user.Email)
+	ValidatePasswordPlaintext(v, user.Password)
 }
 
 var (

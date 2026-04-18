@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -15,18 +14,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 )
-
-type registerUserInput struct {
-	FirstName          string          `json:"first_name" example:"John"`
-	LastName           string          `json:"last_name" example:"Doe"`
-	Email              string          `json:"email" example:"john@example.com"`
-	Password           string          `json:"password" example:"pa55word"`
-	DegreeDiscipline   *string         `json:"degree_discipline" example:"Computer Science"`
-	GraduationYear     *int            `json:"graduation_year" example:"2025"`
-	TargetIndustries   []string        `json:"target_industries" example:"[\"Finance\", \"Tech\"]"`
-	PreferredLocations []string        `json:"preferred_locations" example:"[\"Lagos\", \"Abuja\"]"`
-	Preferences        json.RawMessage `json:"preferences" swaggertype:"object"`
-}
 
 // registerUserHandler godoc
 // @Summary      Register a new user
@@ -42,11 +29,17 @@ type registerUserInput struct {
 // @Router      /auth/register [post]
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 
-	var input registerUserInput
+	var input data.CreateUserInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	if data.ValidateCreateUserInput(v, input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -66,13 +59,6 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	err = user.Password.Set(input.Password)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
-		return
-	}
-
-	v := validator.New()
-
-	if data.ValidateUser(v, user); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -154,10 +140,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      500          {object}  ErrorResponse
 // @Router       /auth/login [post]
 func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input data.LoginUserInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -166,8 +149,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	v := validator.New()
-	data.ValidateEmail(v, input.Email)
-	data.ValidatePasswordPlaintext(v, input.Password)
+	data.ValidateLoginUserInput(v, input)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
@@ -331,10 +313,6 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 	}
 }
 
-type googleAuthInput struct {
-	Code string `json:"code"`
-}
-
 // googleAuthHandler godoc
 // @Summary      Authenticate with Google OAuth
 // @Description  Exchange a Google OAuth authorization code for a session. Creates a new user if one doesn't exist.
@@ -349,7 +327,7 @@ type googleAuthInput struct {
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/google [post]
 func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
-	var input googleAuthInput
+	var input data.GoogleAuthInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -523,10 +501,6 @@ func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-type forgotPasswordInput struct {
-	Email string `json:"email"`
-}
-
 // forgotPasswordHandler godoc
 // @Summary      Request a password reset email
 // @Description  Sends a password reset email if an account with the given email exists. Always returns 200 to prevent email enumeration.
@@ -540,7 +514,7 @@ type forgotPasswordInput struct {
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/forgot-password [post]
 func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	var input forgotPasswordInput
+	var input data.ForgotPasswordInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -601,11 +575,6 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
-type resetPasswordInput struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
-}
-
 // resetPasswordHandler godoc
 // @Summary      Reset password using a reset token
 // @Description  Validates a password reset token and sets a new password. Revokes all existing sessions.
@@ -619,7 +588,7 @@ type resetPasswordInput struct {
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/reset-password [post]
 func (app *application) resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	var input resetPasswordInput
+	var input data.ResetPasswordInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
