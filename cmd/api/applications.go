@@ -61,6 +61,63 @@ func (app *application) addApplicationHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// updateApplicationHandler godoc
+// @Summary      Update a tracked application
+// @Description  Updates the status and/or notes of an existing application tracker entry.
+// @Tags         ApplicationTrackers
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                       true  "Application tracker ID"
+// @Param        body  body      data.UpdateApplicationInput  true  "Fields to update"
+// @Success      200   {object}  envelope
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      403   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /me/applications/{id} [patch]
+func (app *application) updateApplicationHandler(w http.ResponseWriter, r *http.Request) {
+	trackerID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var input data.UpdateApplicationInput
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateUpdateApplicationInput(v, input)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	user := app.contextGetUser(r)
+
+	application, err := app.models.ApplicationTracker.Update(r.Context(), app.db, user.ID, trackerID, input)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": application}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // listApplicationsHandler godoc
 // @Summary      List the current user's application tracker entries
 // @Description  Returns the authenticated user's tracked applications with pagination and optional status filter.

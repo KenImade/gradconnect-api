@@ -74,6 +74,8 @@ func (app *application) routes() http.Handler {
 		app.requireVerifiedUser(app.listApplicationsHandler))
 	router.HandlerFunc(http.MethodPost, "/api/v1/me/applications",
 		app.requireVerifiedUser(app.addApplicationHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/v1/me/applications/:id",
+		app.requireVerifiedUser(app.updateApplicationHandler))
 
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
