@@ -21,7 +21,7 @@ import (
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        user  body      registerUserInput  true  "User Registration Details"
+// @Param        user  body      data.CreateUserInput  true  "User Registration Details"
 // @Success      201   {object}  data.User
 // @Failure      400   {object}  ErrorResponse
 // @Failure      422   {object}  ErrorResponse
@@ -319,7 +319,7 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body  body      googleAuthInput  true  "Google OAuth authorization code"
+// @Param        body  body      data.GoogleAuthInput  true  "Google OAuth authorization code"
 // @Success      200   {object}  data.User  "Existing user logged in"
 // @Success      201   {object}  data.User  "New user created"
 // @Failure      400   {object}  ErrorResponse
@@ -507,7 +507,7 @@ func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body  body      forgotPasswordInput  true  "Email address"
+// @Param        body  body      data.ForgotPasswordInput  true  "Email address"
 // @Success      200   {object}  envelope
 // @Failure      400   {object}  ErrorResponse
 // @Failure      422   {object}  ErrorResponse
@@ -581,7 +581,7 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body  body      resetPasswordInput  true  "Reset token and new password"
+// @Param        body  body      data.ResetPasswordInput  true  "Reset token and new password"
 // @Success      200   {object}  envelope
 // @Failure      400   {object}  ErrorResponse  "Invalid or expired token"
 // @Failure      422   {object}  ErrorResponse

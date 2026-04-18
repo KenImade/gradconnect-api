@@ -60,3 +60,30 @@ func (app *application) requireVerifiedUser(next http.HandlerFunc) http.HandlerF
 		next(w, r)
 	})
 }
+
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	return app.requireVerifiedUser(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		permissions, err := app.models.Permissions.GetAllForUser(r.Context(), app.db, user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		hasPermission := false
+		for _, p := range permissions {
+			if p == code {
+				hasPermission = true
+				break
+			}
+		}
+
+		if !hasPermission {
+			app.errorResponse(w, r, http.StatusForbidden, "your user account does not have the necessary permissions to access this resource")
+			return
+		}
+
+		next(w, r)
+	})
+}

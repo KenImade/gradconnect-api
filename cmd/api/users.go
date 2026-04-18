@@ -13,7 +13,7 @@ import (
 // @Description  Returns the user associated with the current session, including their permissions.
 // @Tags         Users
 // @Produce      json
-// @Success      200  {object}  currentUserResponse
+// @Success      200  {object}  data.CurrentUserResponse
 // @Failure      401  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /me [get]
@@ -55,7 +55,7 @@ func (app *application) getCurrentUserHandler(w http.ResponseWriter, r *http.Req
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        user  body      updateUserInput  true  "Profile fields to update"
+// @Param        user  body      data.UpdateUserInput  true  "Profile fields to update"
 // @Success      200   {object}  data.User
 // @Failure      400   {object}  ErrorResponse
 // @Failure      409   {object}  ErrorResponse  "Edit conflict"

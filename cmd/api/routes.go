@@ -77,6 +77,13 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/v1/me/applications/:id",
 		app.requireVerifiedUser(app.updateApplicationHandler))
 
+	// review
+	router.HandlerFunc(http.MethodPost, "/api/v1/reviews",
+		app.requirePermission("review:submit", app.addReviewHandler))
+
+	router.HandlerFunc(http.MethodPatch, "/api/v1/reviews/:id",
+		app.requirePermission("review:edit", app.updateReviewHandler))
+
 	// Admin
 	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
 
