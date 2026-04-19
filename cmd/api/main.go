@@ -41,6 +41,9 @@ type config struct {
 		redirectURL  string
 	}
 	frontendURL string
+	import_     struct {
+		storageDir string
+	}
 }
 
 type application struct {
@@ -85,6 +88,8 @@ func main() {
 	flag.StringVar(&cfg.google.clientID, "google-client-id", "522466790021-q29p5hhcfenk8qrrr5dq5mskujduevq6.apps.googleusercontent.com", "Google OAuth client ID")
 	flag.StringVar(&cfg.google.clientSecret, "google-client-secret", "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", "Google OAuth client secret")
 	flag.StringVar(&cfg.google.redirectURL, "google-redirect-url", "http://localhost:3000", "Google OAuth redirect URL")
+
+	flag.StringVar(&cfg.import_.storageDir, "import-storage-dir", "/tmp/gradconnect-imports", "Directory for CSV imports")
 
 	flag.Parse()
 

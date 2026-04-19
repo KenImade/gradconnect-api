@@ -113,6 +113,12 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/reviews/:id",
 		app.requirePermission("admin:full", app.moderateReviewHandler))
 
+	// Admin import routes
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/import",
+		app.requirePermission("admin:full", app.startImportHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/import/:id",
+		app.requirePermission("admin:full", app.getImportJobHandler))
+
 	// Wrap everything: global 100/min rate limit (with exemptions for endpoint-specific limiters)
 	// → authenticate middleware loads the user into context
 	return app.rateLimitAll()(app.authenticate(router))

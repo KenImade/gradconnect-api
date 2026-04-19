@@ -79,6 +79,14 @@ func (app *application) runTaskWorker() {
 
 func (app *application) processTask(jobType string, payload []byte) error {
 	switch jobType {
+	case "admin:import":
+		var data struct {
+			ImportJobID string `json:"import_job_id"`
+		}
+		if err := json.Unmarshal(payload, &data); err != nil {
+			return err
+		}
+		return app.processImport(data.ImportJobID)
 	case "email:verify":
 		var data struct {
 			Email           string `json:"user_email"`

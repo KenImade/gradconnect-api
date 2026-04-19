@@ -25,6 +25,7 @@ type Models struct {
 	Assessments        AssessmentModel
 	Bookmarks          BookmarkModel
 	Employers          EmployerModel
+	ImportJob          ImportJobModel
 	Opportunities      OpportunityModel
 	Permissions        PermissionModel
 	Reviews            ReviewModel
@@ -40,6 +41,7 @@ func NewModels(db *pgxpool.Pool) Models {
 		Assessments:        AssessmentModel{DB: db},
 		Bookmarks:          BookmarkModel{DB: db},
 		Employers:          EmployerModel{DB: db},
+		ImportJob:          ImportJobModel{DB: db},
 		Opportunities:      OpportunityModel{DB: db},
 		Permissions:        PermissionModel{DB: db},
 		Reviews:            ReviewModel{DB: db},
