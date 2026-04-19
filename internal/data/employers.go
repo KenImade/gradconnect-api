@@ -9,8 +9,11 @@ import (
 
 	"api.gradconnect.com/internal/validator"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// --- Domain types ---
 
 type Employer struct {
 	ID          string          `json:"id"`
@@ -31,48 +34,164 @@ type Employer struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
-func ValidateEmployer(v *validator.Validator, employer *Employer) {
-	v.Check(employer.Name != "", "name", "must be provided")
-	v.Check(len(employer.Name) <= 255, "name", "must not be more than 255 characters")
+// --- Inputs ---
 
-	v.Check(employer.Slug != "", "slug", "must be provided")
-	v.Check(len(employer.Slug) <= 255, "slug", "must not be more than 255 characters")
-	v.Check(validator.Matches(employer.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+type CreateEmployerInput struct {
+	Name        string          `json:"name"`
+	Slug        string          `json:"slug"`
+	Industry    string          `json:"industry"`
+	Size        *string         `json:"size"`
+	HQLocation  *string         `json:"hq_location"`
+	Offices     json.RawMessage `json:"offices"`
+	LogoURL     *string         `json:"logo_url"`
+	Overview    *string         `json:"overview"`
+	Culture     *string         `json:"culture"`
+	Website     *string         `json:"website"`
+	SocialLinks json.RawMessage `json:"social_links"`
+}
 
-	v.Check(employer.Industry != "", "industry", "must be provided")
-	v.Check(len(employer.Industry) <= 100, "industry", "must not be more than 100 characters")
+type UpdateEmployerInput struct {
+	Name        *string         `json:"name"`
+	Slug        *string         `json:"slug"`
+	Industry    *string         `json:"industry"`
+	Size        *string         `json:"size"`
+	HQLocation  *string         `json:"hq_location"`
+	Offices     json.RawMessage `json:"offices"`
+	LogoURL     *string         `json:"logo_url"`
+	Overview    *string         `json:"overview"`
+	Culture     *string         `json:"culture"`
+	Website     *string         `json:"website"`
+	SocialLinks json.RawMessage `json:"social_links"`
+	IsVerified  *bool           `json:"is_verified"`
+}
 
-	if employer.Website != nil {
-		v.Check(len(*employer.Website) <= 512, "website", "must not be more than 512 characters")
+// --- Validators ---
+
+func ValidateCreateEmployerInput(v *validator.Validator, input CreateEmployerInput) {
+	v.Check(input.Name != "", "name", "must be provided")
+	v.Check(len(input.Name) <= 255, "name", "must not be more than 255 characters")
+
+	v.Check(input.Slug != "", "slug", "must be provided")
+	v.Check(len(input.Slug) <= 255, "slug", "must not be more than 255 characters")
+	v.Check(validator.Matches(input.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+
+	v.Check(input.Industry != "", "industry", "must be provided")
+	v.Check(len(input.Industry) <= 100, "industry", "must not be more than 100 characters")
+
+	if input.Size != nil {
+		v.Check(len(*input.Size) <= 50, "size", "must not be more than 50 characters")
 	}
-
-	if employer.LogoURL != nil {
-		v.Check(len(*employer.LogoURL) <= 512, "logo_url", "must not be more than 512 characters")
+	if input.HQLocation != nil {
+		v.Check(len(*input.HQLocation) <= 255, "hq_location", "must not be more than 255 characters")
+	}
+	if input.LogoURL != nil {
+		v.Check(len(*input.LogoURL) <= 512, "logo_url", "must not be more than 512 characters")
+	}
+	if input.Website != nil {
+		v.Check(len(*input.Website) <= 512, "website", "must not be more than 512 characters")
 	}
 }
+
+func ValidateUpdateEmployerInput(v *validator.Validator, input UpdateEmployerInput) {
+	if input.Name != nil {
+		v.Check(*input.Name != "", "name", "must not be empty")
+		v.Check(len(*input.Name) <= 255, "name", "must not be more than 255 characters")
+	}
+	if input.Slug != nil {
+		v.Check(*input.Slug != "", "slug", "must not be empty")
+		v.Check(len(*input.Slug) <= 255, "slug", "must not be more than 255 characters")
+		v.Check(validator.Matches(*input.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+	}
+	if input.Industry != nil {
+		v.Check(*input.Industry != "", "industry", "must not be empty")
+		v.Check(len(*input.Industry) <= 100, "industry", "must not be more than 100 characters")
+	}
+	if input.Size != nil {
+		v.Check(len(*input.Size) <= 50, "size", "must not be more than 50 characters")
+	}
+	if input.HQLocation != nil {
+		v.Check(len(*input.HQLocation) <= 255, "hq_location", "must not be more than 255 characters")
+	}
+	if input.LogoURL != nil {
+		v.Check(len(*input.LogoURL) <= 512, "logo_url", "must not be more than 512 characters")
+	}
+	if input.Website != nil {
+		v.Check(len(*input.Website) <= 512, "website", "must not be more than 512 characters")
+	}
+}
+
+// --- Errors ---
+
+var ErrDuplicateEmployerSlug = errors.New("employer with this slug already exists")
+
+// --- Model ---
 
 type EmployerModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m EmployerModel) Insert(employer *Employer) error {
-	return nil
+func (m EmployerModel) Insert(ctx context.Context, db DBTX, input CreateEmployerInput) (*Employer, error) {
+	query := `
+		INSERT INTO employer
+			(name, slug, industry, size, hq_location, offices,
+			 logo_url, overview, culture, website, social_links)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, name, slug, industry, size, hq_location, offices,
+		          logo_url, overview, culture, website, social_links,
+		          is_verified, version, created_at, updated_at`
+
+	employer := &Employer{}
+	err := db.QueryRow(ctx, query,
+		input.Name,
+		input.Slug,
+		input.Industry,
+		input.Size,
+		input.HQLocation,
+		input.Offices,
+		input.LogoURL,
+		input.Overview,
+		input.Culture,
+		input.Website,
+		input.SocialLinks,
+	).Scan(
+		&employer.ID,
+		&employer.Name,
+		&employer.Slug,
+		&employer.Industry,
+		&employer.Size,
+		&employer.HQLocation,
+		&employer.Offices,
+		&employer.LogoURL,
+		&employer.Overview,
+		&employer.Culture,
+		&employer.Website,
+		&employer.SocialLinks,
+		&employer.IsVerified,
+		&employer.Version,
+		&employer.CreatedAt,
+		&employer.UpdatedAt,
+	)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrDuplicateEmployerSlug
+		}
+		return nil, err
+	}
+
+	return employer, nil
 }
 
-func (m EmployerModel) GetByID(id string) (*Employer, error) {
+func (m EmployerModel) GetByID(ctx context.Context, db DBTX, id string) (*Employer, error) {
 	query := `
 		SELECT id, name, slug, industry, size, hq_location, offices,
-			logo_url, overview, culture, website, social_links,
-			is_verified, version, created_at, updated_at
+		       logo_url, overview, culture, website, social_links,
+		       is_verified, version, created_at, updated_at
 		FROM employer
 		WHERE id = $1`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
 	var employer Employer
-
-	err := m.DB.QueryRow(ctx, query, id).Scan(
+	err := db.QueryRow(ctx, query, id).Scan(
 		&employer.ID,
 		&employer.Name,
 		&employer.Slug,
@@ -90,7 +209,6 @@ func (m EmployerModel) GetByID(id string) (*Employer, error) {
 		&employer.CreatedAt,
 		&employer.UpdatedAt,
 	)
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRecordNotFound
@@ -101,20 +219,16 @@ func (m EmployerModel) GetByID(id string) (*Employer, error) {
 	return &employer, nil
 }
 
-func (m EmployerModel) GetBySlug(slug string) (*Employer, error) {
+func (m EmployerModel) GetBySlug(ctx context.Context, db DBTX, slug string) (*Employer, error) {
 	query := `
 		SELECT id, name, slug, industry, size, hq_location, offices,
-			logo_url, overview, culture, website, social_links,
-			is_verified, version, created_at, updated_at
+		       logo_url, overview, culture, website, social_links,
+		       is_verified, version, created_at, updated_at
 		FROM employer
 		WHERE slug = $1`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
 	var employer Employer
-
-	err := m.DB.QueryRow(ctx, query, slug).Scan(
+	err := db.QueryRow(ctx, query, slug).Scan(
 		&employer.ID,
 		&employer.Name,
 		&employer.Slug,
@@ -142,39 +256,129 @@ func (m EmployerModel) GetBySlug(slug string) (*Employer, error) {
 	return &employer, nil
 }
 
-func (m EmployerModel) Update(employer *Employer) error {
+func (m EmployerModel) Update(ctx context.Context, db DBTX, id string, input UpdateEmployerInput) (*Employer, error) {
+	current, err := m.GetByID(ctx, db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.Name != nil {
+		current.Name = *input.Name
+	}
+	if input.Slug != nil {
+		current.Slug = *input.Slug
+	}
+	if input.Industry != nil {
+		current.Industry = *input.Industry
+	}
+	if input.Size != nil {
+		current.Size = input.Size
+	}
+	if input.HQLocation != nil {
+		current.HQLocation = input.HQLocation
+	}
+	if len(input.Offices) > 0 {
+		current.Offices = input.Offices
+	}
+	if input.LogoURL != nil {
+		current.LogoURL = input.LogoURL
+	}
+	if input.Overview != nil {
+		current.Overview = input.Overview
+	}
+	if input.Culture != nil {
+		current.Culture = input.Culture
+	}
+	if input.Website != nil {
+		current.Website = input.Website
+	}
+	if len(input.SocialLinks) > 0 {
+		current.SocialLinks = input.SocialLinks
+	}
+	if input.IsVerified != nil {
+		current.IsVerified = *input.IsVerified
+	}
+
+	query := `
+		UPDATE employer
+		SET name = $1, slug = $2, industry = $3, size = $4, hq_location = $5,
+		    offices = $6, logo_url = $7, overview = $8, culture = $9,
+		    website = $10, social_links = $11, is_verified = $12,
+		    version = version + 1
+		WHERE id = $13 AND version = $14
+		RETURNING version, updated_at`
+
+	err = db.QueryRow(ctx, query,
+		current.Name,
+		current.Slug,
+		current.Industry,
+		current.Size,
+		current.HQLocation,
+		current.Offices,
+		current.LogoURL,
+		current.Overview,
+		current.Culture,
+		current.Website,
+		current.SocialLinks,
+		current.IsVerified,
+		id,
+		current.Version,
+	).Scan(&current.Version, &current.UpdatedAt)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrEditConflict
+		default:
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return nil, ErrDuplicateEmployerSlug
+			}
+			return nil, err
+		}
+	}
+
+	return current, nil
+}
+
+func (m EmployerModel) Delete(ctx context.Context, db DBTX, id string) error {
+	query := `DELETE FROM employer WHERE id = $1`
+
+	result, err := db.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
 
-func (m EmployerModel) Delete(id string) error {
-	return nil
-}
-
-func (m EmployerModel) GetAll(search string, industry string, isVerified *bool, filters Filters) ([]*Employer, Metadata, error) {
+func (m EmployerModel) GetAll(ctx context.Context, db DBTX, search, industry string, isVerified *bool, filters Filters) ([]*Employer, Metadata, error) {
 	query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			count(*) OVER(),
 			id, name, slug, industry, size, hq_location, offices,
 			logo_url, overview, culture, website, social_links,
 			is_verified, version, created_at, updated_at
 		FROM employer
 		WHERE (to_tsvector('english', name || ' ' || COALESCE(overview, '') || ' ' || industry || ' ' || COALESCE(hq_location, '')) @@ plainto_tsquery('english', $1) OR $1 = '')
-		AND (industry = $2 OR $2 = '')
-		AND (is_verified = $3 OR $3 IS NULL)
+		  AND (industry = $2 OR $2 = '')
+		  AND (is_verified = $3 OR $3 IS NULL)
 		ORDER BY %s %s, name ASC
 		LIMIT $4 OFFSET $5
 	`, filters.sortColumn(), filters.sortDirection())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	args := []any{search, industry, isVerified, filters.limit(), filters.offset()}
 
-	rows, err := m.DB.Query(ctx, query, args...)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, Metadata{}, err
 	}
-
 	defer rows.Close()
 
 	totalRecords := 0

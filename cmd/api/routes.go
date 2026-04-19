@@ -85,7 +85,13 @@ func (app *application) routes() http.Handler {
 		app.requirePermission("review:edit", app.updateReviewHandler))
 
 	// Admin
-	// router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id", app.sho)
+	// Admin employer routes
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/employers",
+		app.requirePermission("admin:full", app.createEmployerHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/employers/:id",
+		app.requirePermission("admin:full", app.updateEmployerHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/v1/admin/employers/:id",
+		app.requirePermission("admin:full", app.deleteEmployerHandler))
 
 	return app.authenticate(router)
 }
