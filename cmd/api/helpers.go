@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -177,7 +178,7 @@ func (app *application) inTransaction(ctx context.Context, fn func(pgx.Tx) error
 	return tx.Commit(ctx)
 }
 
-func (app *application) background(fn func()) {
+func (app *application) background(name string, fn func()) {
 	app.wg.Add(1)
 
 	go func() {
@@ -185,7 +186,11 @@ func (app *application) background(fn func()) {
 
 		defer func() {
 			if err := recover(); err != nil {
-				app.logger.Error(fmt.Sprintf("%v", err))
+				app.logger.Error("background task panicked",
+					"task", name,
+					"error", fmt.Sprintf("%v", err),
+					"stack", string(debug.Stack()),
+				)
 			}
 		}()
 

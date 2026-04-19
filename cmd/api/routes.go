@@ -80,7 +80,6 @@ func (app *application) routes() http.Handler {
 	// review
 	router.HandlerFunc(http.MethodPost, "/api/v1/reviews",
 		app.requirePermission("review:submit", app.addReviewHandler))
-
 	router.HandlerFunc(http.MethodPatch, "/api/v1/reviews/:id",
 		app.requirePermission("review:edit", app.updateReviewHandler))
 
@@ -106,6 +105,12 @@ func (app *application) routes() http.Handler {
 		app.requirePermission("admin:full", app.createAssessmentHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/assessments/:id",
 		app.requirePermission("admin:full", app.updateAssessmentHandler))
+
+	// Admin review routes
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/reviews",
+		app.requirePermission("admin:full", app.listReviewsForModerationHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/reviews/:id",
+		app.requirePermission("admin:full", app.moderateReviewHandler))
 
 	return app.authenticate(router)
 }

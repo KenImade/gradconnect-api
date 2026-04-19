@@ -15,11 +15,29 @@ import (
 
 // --- Domain types ---
 
-// Review represents a row in the review table.
 type Review struct {
 	ID               string          `json:"id"`
 	EmployerID       string          `json:"employer_id"`
 	UserID           string          `json:"-"`
+	ProgrammeName    string          `json:"programme_name"`
+	ApplicationYear  int             `json:"application_year"`
+	Outcome          string          `json:"outcome"`
+	StageBreakdown   json.RawMessage `json:"stage_breakdown"`
+	DifficultyRating int             `json:"difficulty_rating"`
+	ExperienceRating int             `json:"experience_rating"`
+	Tips             *string         `json:"tips"`
+	DegreeDiscipline *string         `json:"degree_discipline"`
+	University       *string         `json:"university"`
+	Status           string          `json:"status"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
+// AdminReview is the admin-facing shape that exposes user_id for moderation.
+type AdminReview struct {
+	ID               string          `json:"id"`
+	EmployerID       string          `json:"employer_id"`
+	UserID           string          `json:"user_id"`
 	ProgrammeName    string          `json:"programme_name"`
 	ApplicationYear  int             `json:"application_year"`
 	Outcome          string          `json:"outcome"`
@@ -78,7 +96,8 @@ type ModerateReviewInput struct {
 // --- Validators ---
 
 var permittedReviewOutcomes = []string{"offer", "waitlisted", "rejected", "withdrew"}
-var permittedReviewStatuses = []string{"approved", "rejected"}
+var permittedModerationStatuses = []string{"approved", "rejected"}
+var permittedReviewListStatuses = []string{"pending", "approved", "rejected"}
 
 func validateStageBreakdown(v *validator.Validator, raw json.RawMessage) {
 	if len(raw) == 0 {
@@ -160,7 +179,11 @@ func ValidateUpdateReviewInput(v *validator.Validator, input UpdateReviewInput) 
 
 func ValidateModerateReviewInput(v *validator.Validator, input ModerateReviewInput) {
 	v.Check(input.Status != "", "status", "must be provided")
-	v.Check(validator.PermittedValue(input.Status, permittedReviewStatuses...), "status", "must be one of: approved, rejected")
+	v.Check(validator.PermittedValue(input.Status, permittedModerationStatuses...), "status", "must be one of: approved, rejected")
+}
+
+func ValidateReviewStatusFilter(v *validator.Validator, status string) {
+	v.Check(validator.PermittedValue(status, permittedReviewListStatuses...), "status", "must be one of: pending, approved, rejected")
 }
 
 // --- Errors ---
@@ -218,9 +241,9 @@ func (m ReviewModel) Insert(ctx context.Context, db DBTX, userID string, input C
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
-			case "23503": // foreign_key_violation — employer doesn't exist
+			case "23503":
 				return nil, ErrRecordNotFound
-			case "23505": // unique_violation — duplicate review
+			case "23505":
 				return nil, ErrDuplicateReview
 			}
 		}
@@ -267,7 +290,6 @@ func (m ReviewModel) GetByID(ctx context.Context, db DBTX, reviewID string) (*Re
 }
 
 func (m ReviewModel) Update(ctx context.Context, db DBTX, userID, reviewID string, input UpdateReviewInput) (*Review, error) {
-	// Fetch current values to merge partial update, scoped to the owner
 	current, err := m.GetByID(ctx, db, reviewID)
 	if err != nil {
 		return nil, err
@@ -456,34 +478,34 @@ func (m ReviewModel) GetAllByEmployerSlug(ctx context.Context, db DBTX, slug str
 	return reviews, metadata, nil
 }
 
-func (m ReviewModel) GetAllForModeration(ctx context.Context, db DBTX, filters Filters) ([]*Review, Metadata, error) {
+func (m ReviewModel) GetAllForModeration(ctx context.Context, db DBTX, status string, filters Filters) ([]*AdminReview, Metadata, error) {
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(),
-		       id, employer_id, user_id, programme_name,
-		       application_year, outcome, stage_breakdown,
-		       difficulty_rating, experience_rating, tips,
-		       degree_discipline, university, status,
-		       created_at, updated_at
-		FROM review
-		WHERE status = 'pending'
-		ORDER BY %s %s, id ASC
-		LIMIT $1 OFFSET $2
-	`, filters.sortColumn(), filters.sortDirection())
+        SELECT count(*) OVER(),
+               id, employer_id, user_id, programme_name,
+               application_year, outcome, stage_breakdown,
+               difficulty_rating, experience_rating, tips,
+               degree_discipline, university, status,
+               created_at, updated_at
+        FROM review
+        WHERE status = $1
+        ORDER BY %s %s, id ASC
+        LIMIT $2 OFFSET $3
+    `, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := db.Query(ctx, query, filters.limit(), filters.offset())
+	rows, err := db.Query(ctx, query, status, filters.limit(), filters.offset())
 	if err != nil {
 		return nil, Metadata{}, err
 	}
 	defer rows.Close()
 
 	totalRecords := 0
-	reviews := []*Review{}
+	reviews := []*AdminReview{}
 
 	for rows.Next() {
-		var review Review
+		var review AdminReview
 
 		err := rows.Scan(
 			&totalRecords,
