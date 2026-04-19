@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,10 +10,152 @@ import (
 	"api.gradconnect.com/internal/validator"
 )
 
-func (app *application) createOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
+// createOpportunityHandler godoc
+// @Summary      Create a new opportunity (admin only)
+// @Description  Creates a new opportunity listing. Requires admin:full permission.
+// @Tags         Admin
+// @Accept       json
+// @Produce      json
+// @Param        body  body      data.CreateOpportunityInput  true  "Opportunity details"
+// @Success      201   {object}  envelope{data=data.Opportunity}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      403   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse  "Employer not found"
+// @Failure      409   {object}  ErrorResponse  "Slug already exists"
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /admin/opportunities [post]
+func (app *application) createOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.CreateOpportunityInput
 
-func (app *application) showOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
 
+	v := validator.New()
+	data.ValidateCreateOpportunityInput(v, input)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	opportunity, err := app.models.Opportunities.Insert(r.Context(), app.db, input)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrDuplicateOpportunitySlug):
+			app.errorResponse(w, r, http.StatusConflict, "an opportunity with this slug already exists")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/api/v1/opportunities/%s", opportunity.Slug))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"data": opportunity}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// updateOpportunityHandler godoc
+// @Summary      Update an opportunity (admin only)
+// @Description  Updates an existing opportunity. Requires admin:full permission.
+// @Tags         Admin
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                       true  "Opportunity ID"
+// @Param        body  body      data.UpdateOpportunityInput  true  "Fields to update"
+// @Success      200   {object}  envelope{data=data.Opportunity}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      403   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /admin/opportunities/{id} [patch]
+func (app *application) updateOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var input data.UpdateOpportunityInput
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateUpdateOpportunityInput(v, input)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	opportunity, err := app.models.Opportunities.Update(r.Context(), app.db, id, input)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrDuplicateOpportunitySlug):
+			app.errorResponse(w, r, http.StatusConflict, "an opportunity with this slug already exists")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": opportunity}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// deleteOpportunityHandler godoc
+// @Summary      Delete an opportunity (admin only)
+// @Description  Deletes an opportunity. Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Param        id  path  string  true  "Opportunity ID"
+// @Success      204
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/opportunities/{id} [delete]
+func (app *application) deleteOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	err = app.models.Opportunities.Delete(r.Context(), app.db, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// showOpportunityBySlugHandler godoc
 // @Summary      Show opportunity
 // @Description  Get a full opportunity profile by slug
 // @Tags         Opportunities
@@ -25,11 +168,11 @@ func (app *application) showOpportunityHandler(w http.ResponseWriter, r *http.Re
 func (app *application) showOpportunityBySlugHandler(w http.ResponseWriter, r *http.Request) {
 	slug, err := app.readSlugParam(r)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.notFoundResponse(w, r)
 		return
 	}
 
-	opportunity, err := app.models.Opportunities.GetBySlug(slug)
+	opportunity, err := app.models.Opportunities.GetBySlug(r.Context(), app.db, slug)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -46,10 +189,7 @@ func (app *application) showOpportunityBySlugHandler(w http.ResponseWriter, r *h
 	}
 }
 
-func (app *application) updateOpportunityHandler(w http.ResponseWriter, r *http.Request) {}
-
-func (app *application) deleteOpportunityHanlder(w http.ResponseWriter, r *http.Request) {}
-
+// listOpportunitiesHandler godoc
 // @Summary      List opportunities
 // @Description  List graduate opportunities with filtering, keyword search, and pagination
 // @Tags         Opportunities
@@ -96,7 +236,7 @@ func (app *application) listOpportunitiesHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	opportunities, metadata, err := app.models.Opportunities.GetAll(input)
+	opportunities, metadata, err := app.models.Opportunities.GetAll(r.Context(), app.db, input)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return

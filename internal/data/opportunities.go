@@ -8,21 +8,11 @@ import (
 
 	"api.gradconnect.com/internal/validator"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type OpportunityFilters struct {
-	Search         string
-	Type           string
-	Status         string
-	IntakeYear     int
-	Industry       string
-	Location       string
-	Discipline     string
-	DeadlineBefore time.Time
-	DeadlineAfter  time.Time
-	Filters
-}
+// --- Domain types ---
 
 type Opportunity struct {
 	ID             string       `json:"id"`
@@ -42,6 +32,7 @@ type Opportunity struct {
 	IsActive       bool         `json:"is_active"`
 	SourceURL      *string      `json:"source_url"`
 	CreatedAt      time.Time    `json:"created_at"`
+	UpdatedAt      time.Time    `json:"updated_at"`
 	Employer       EmployerStub `json:"employer"`
 }
 
@@ -53,128 +44,255 @@ type EmployerStub struct {
 	Industry string  `json:"industry"`
 }
 
-func ValidateOpportunity(v *validator.Validator, opportunity *Opportunity) {
-	// Employer reference
-	v.Check(validator.IsValidUUID(opportunity.Employer.ID), "employer_id", "must be a valid UUID")
+// --- Inputs ---
 
-	// Title
-	v.Check(opportunity.Title != "", "title", "must be provided")
-	v.Check(len(opportunity.Title) <= 255, "title", "must not be more than 255 characters")
+type CreateOpportunityInput struct {
+	EmployerID     string     `json:"employer_id"`
+	Title          string     `json:"title"`
+	Slug           string     `json:"slug"`
+	Type           string     `json:"type"`
+	IntakeYear     int        `json:"intake_year"`
+	Description    string     `json:"description"`
+	Requirements   *string    `json:"requirements"`
+	Location       string     `json:"location"`
+	DisciplineTags []string   `json:"discipline_tags"`
+	OpensAt        *time.Time `json:"opens_at"`
+	Deadline       *time.Time `json:"deadline"`
+	ApplicationURL string     `json:"application_url"`
+	SourceURL      *string    `json:"source_url"`
+}
 
-	// Slug
-	v.Check(opportunity.Slug != "", "slug", "must be provided")
-	v.Check(len(opportunity.Slug) <= 255, "slug", "must not be more than 255 characters")
-	v.Check(validator.Matches(opportunity.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+type UpdateOpportunityInput struct {
+	Title          *string    `json:"title"`
+	Slug           *string    `json:"slug"`
+	Type           *string    `json:"type"`
+	IntakeYear     *int       `json:"intake_year"`
+	Description    *string    `json:"description"`
+	Requirements   *string    `json:"requirements"`
+	Location       *string    `json:"location"`
+	DisciplineTags *[]string  `json:"discipline_tags"`
+	OpensAt        *time.Time `json:"opens_at"`
+	Deadline       *time.Time `json:"deadline"`
+	ApplicationURL *string    `json:"application_url"`
+	SourceURL      *string    `json:"source_url"`
+	IsActive       *bool      `json:"is_active"`
+}
 
-	// Type enum
-	v.Check(
-		validator.PermittedValue(opportunity.Type, "graduate_trainee", "internship", "nysc", "industrial_attachment"),
-		"type",
-		"must be one of: graduate_trainee, internship, nysc, industrial_attachment",
-	)
+type OpportunityFilters struct {
+	Search         string
+	Type           string
+	Status         string
+	IntakeYear     int
+	Industry       string
+	Location       string
+	Discipline     string
+	DeadlineBefore time.Time
+	DeadlineAfter  time.Time
+	Filters
+}
 
-	// Intake year
+// --- Validators ---
+
+var permittedOpportunityTypes = []string{"graduate_trainee", "internship", "nysc", "industrial_attachment"}
+
+func ValidateCreateOpportunityInput(v *validator.Validator, input CreateOpportunityInput) {
+	v.Check(validator.IsValidUUID(input.EmployerID), "employer_id", "must be a valid UUID")
+
+	v.Check(input.Title != "", "title", "must be provided")
+	v.Check(len(input.Title) <= 255, "title", "must not be more than 255 characters")
+
+	v.Check(input.Slug != "", "slug", "must be provided")
+	v.Check(len(input.Slug) <= 255, "slug", "must not be more than 255 characters")
+	v.Check(validator.Matches(input.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+
+	v.Check(validator.PermittedValue(input.Type, permittedOpportunityTypes...), "type", "must be one of: graduate_trainee, internship, nysc, industrial_attachment")
+
 	currentYear := time.Now().Year()
-	v.Check(opportunity.IntakeYear >= currentYear-1, "intake_year", "must not be more than one year in the past")
-	v.Check(opportunity.IntakeYear <= currentYear+2, "intake_year", "must not be more than two years in the future")
+	v.Check(input.IntakeYear >= currentYear-1, "intake_year", "must not be more than one year in the past")
+	v.Check(input.IntakeYear <= currentYear+2, "intake_year", "must not be more than two years in the future")
 
-	// Description
-	v.Check(opportunity.Description != "", "description", "must be provided")
+	v.Check(input.Description != "", "description", "must be provided")
 
-	// Requirements (optional, length limit only)
-	if opportunity.Requirements != nil {
-		v.Check(len(*opportunity.Requirements) <= 5000, "requirements", "must not be more than 5000 characters")
+	if input.Requirements != nil {
+		v.Check(len(*input.Requirements) <= 5000, "requirements", "must not be more than 5000 characters")
 	}
 
-	// Location
-	v.Check(opportunity.Location != "", "location", "must be provided")
-	v.Check(len(opportunity.Location) <= 255, "location", "must not be more than 255 characters")
+	v.Check(input.Location != "", "location", "must be provided")
+	v.Check(len(input.Location) <= 255, "location", "must not be more than 255 characters")
 
-	// Discipline tags
-	v.Check(len(opportunity.DisciplineTags) <= 20, "discipline_tags", "must not have more than 20 tags")
-	for i, tag := range opportunity.DisciplineTags {
+	v.Check(len(input.DisciplineTags) <= 20, "discipline_tags", "must not have more than 20 tags")
+	for i, tag := range input.DisciplineTags {
 		v.Check(tag != "", fmt.Sprintf("discipline_tags[%d]", i), "must not be empty")
 		v.Check(len(tag) <= 100, fmt.Sprintf("discipline_tags[%d]", i), "must not be more than 100 characters")
 	}
 
-	// Dates
-	if opportunity.OpensAt != nil && opportunity.Deadline != nil {
+	if input.OpensAt != nil && input.Deadline != nil {
 		v.Check(
-			opportunity.OpensAt.Before(*opportunity.Deadline) || opportunity.OpensAt.Equal(*opportunity.Deadline),
+			input.OpensAt.Before(*input.Deadline) || input.OpensAt.Equal(*input.Deadline),
 			"opens_at",
 			"must be before or equal to deadline",
 		)
 	}
 
-	// Application URL
-	v.Check(opportunity.ApplicationURL != "", "application_url", "must be provided")
-	v.Check(len(opportunity.ApplicationURL) <= 512, "application_url", "must not be more than 512 characters")
-	v.Check(validator.Matches(opportunity.ApplicationURL, validator.URLRX), "application_url", "must be a valid URL")
+	v.Check(input.ApplicationURL != "", "application_url", "must be provided")
+	v.Check(len(input.ApplicationURL) <= 512, "application_url", "must not be more than 512 characters")
+	v.Check(validator.Matches(input.ApplicationURL, validator.URLRX), "application_url", "must be a valid URL")
 
-	// Source URL (optional)
-	if opportunity.SourceURL != nil {
-		v.Check(len(*opportunity.SourceURL) <= 512, "source_url", "must not be more than 512 characters")
-		v.Check(validator.Matches(*opportunity.SourceURL, validator.URLRX), "source_url", "must be a valid URL")
+	if input.SourceURL != nil {
+		v.Check(len(*input.SourceURL) <= 512, "source_url", "must not be more than 512 characters")
+		v.Check(validator.Matches(*input.SourceURL, validator.URLRX), "source_url", "must be a valid URL")
 	}
 }
+
+func ValidateUpdateOpportunityInput(v *validator.Validator, input UpdateOpportunityInput) {
+	if input.Title != nil {
+		v.Check(*input.Title != "", "title", "must not be empty")
+		v.Check(len(*input.Title) <= 255, "title", "must not be more than 255 characters")
+	}
+	if input.Slug != nil {
+		v.Check(*input.Slug != "", "slug", "must not be empty")
+		v.Check(len(*input.Slug) <= 255, "slug", "must not be more than 255 characters")
+		v.Check(validator.Matches(*input.Slug, validator.SlugRX), "slug", "must contain only lowercase letters, numbers, and hyphens")
+	}
+	if input.Type != nil {
+		v.Check(validator.PermittedValue(*input.Type, permittedOpportunityTypes...), "type", "must be one of: graduate_trainee, internship, nysc, industrial_attachment")
+	}
+	if input.IntakeYear != nil {
+		currentYear := time.Now().Year()
+		v.Check(*input.IntakeYear >= currentYear-1, "intake_year", "must not be more than one year in the past")
+		v.Check(*input.IntakeYear <= currentYear+2, "intake_year", "must not be more than two years in the future")
+	}
+	if input.Description != nil {
+		v.Check(*input.Description != "", "description", "must not be empty")
+	}
+	if input.Requirements != nil {
+		v.Check(len(*input.Requirements) <= 5000, "requirements", "must not be more than 5000 characters")
+	}
+	if input.Location != nil {
+		v.Check(*input.Location != "", "location", "must not be empty")
+		v.Check(len(*input.Location) <= 255, "location", "must not be more than 255 characters")
+	}
+	if input.DisciplineTags != nil {
+		v.Check(len(*input.DisciplineTags) <= 20, "discipline_tags", "must not have more than 20 tags")
+		for i, tag := range *input.DisciplineTags {
+			v.Check(tag != "", fmt.Sprintf("discipline_tags[%d]", i), "must not be empty")
+			v.Check(len(tag) <= 100, fmt.Sprintf("discipline_tags[%d]", i), "must not be more than 100 characters")
+		}
+	}
+	if input.OpensAt != nil && input.Deadline != nil {
+		v.Check(
+			input.OpensAt.Before(*input.Deadline) || input.OpensAt.Equal(*input.Deadline),
+			"opens_at",
+			"must be before or equal to deadline",
+		)
+	}
+	if input.ApplicationURL != nil {
+		v.Check(*input.ApplicationURL != "", "application_url", "must not be empty")
+		v.Check(len(*input.ApplicationURL) <= 512, "application_url", "must not be more than 512 characters")
+		v.Check(validator.Matches(*input.ApplicationURL, validator.URLRX), "application_url", "must be a valid URL")
+	}
+	if input.SourceURL != nil {
+		v.Check(len(*input.SourceURL) <= 512, "source_url", "must not be more than 512 characters")
+		v.Check(validator.Matches(*input.SourceURL, validator.URLRX), "source_url", "must be a valid URL")
+	}
+}
+
+// --- Errors ---
+
+var ErrDuplicateOpportunitySlug = errors.New("opportunity with this slug already exists")
+
+// --- Model ---
 
 type OpportunityModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m OpportunityModel) Insert(opportunity *Opportunity) error { return nil }
+// selectOpportunityColumns is the shared column list for SELECT queries that return
+// the full enriched Opportunity shape (with computed status + days_remaining + employer).
+const selectOpportunityColumns = `
+	o.id, o.title, o.slug, o.type, o.intake_year,
+	CASE
+		WHEN o.is_active = false THEN 'withdrawn'
+		WHEN o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at THEN 'upcoming'
+		WHEN o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline THEN 'closed'
+		ELSE 'open'
+	END AS status,
+	o.description, o.requirements, o.location, o.discipline_tags,
+	o.opens_at, o.deadline,
+	CASE WHEN o.deadline IS NULL THEN NULL ELSE (o.deadline - CURRENT_DATE)::int END AS days_remaining,
+	o.application_url, o.is_active, o.source_url, o.created_at, o.updated_at,
+	e.id, e.name, e.slug, e.logo_url, e.industry`
 
-func (m OpportunityModel) GetByID(id string) (*Opportunity, error) { return nil, nil }
-
-func (m OpportunityModel) GetBySlug(slug string) (*Opportunity, error) {
-	query := `
-		SELECT
-            o.id, o.title, o.slug, o.type, o.intake_year,
-            CASE
-                WHEN o.is_active = false THEN 'withdrawn'
-                WHEN o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at THEN 'upcoming'
-                WHEN o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline THEN 'closed'
-                ELSE 'open'
-            END AS status,
-            o.description, o.requirements, o.location, o.discipline_tags,
-            o.opens_at, o.deadline,
-            CASE WHEN o.deadline IS NULL THEN NULL ELSE (o.deadline - CURRENT_DATE)::int END AS days_remaining,
-            o.application_url, o.is_active, o.source_url, o.created_at,
-            e.id, e.name, e.slug, e.logo_url, e.industry
-        FROM opportunity o
-        INNER JOIN employer e ON e.id = o.employer_id
-		WHERE o.slug = $1
-	`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+// scanOpportunity reads the columns defined in selectOpportunityColumns into an Opportunity.
+// Caller passes any extra leading scan targets (e.g. count(*) OVER()).
+func scanOpportunity(row pgx.Row, extra ...any) (*Opportunity, error) {
 	var opportunity Opportunity
-
-	err := m.DB.QueryRow(ctx, query, slug).Scan(
-		&opportunity.ID,
-		&opportunity.Title,
-		&opportunity.Slug,
-		&opportunity.Type,
-		&opportunity.IntakeYear,
-		&opportunity.Status,
-		&opportunity.Description,
-		&opportunity.Requirements,
-		&opportunity.Location,
-		&opportunity.DisciplineTags,
-		&opportunity.OpensAt,
-		&opportunity.Deadline,
-		&opportunity.DaysRemaining,
-		&opportunity.ApplicationURL,
-		&opportunity.IsActive,
-		&opportunity.SourceURL,
-		&opportunity.CreatedAt,
-		&opportunity.Employer.ID,
-		&opportunity.Employer.Name,
-		&opportunity.Employer.Slug,
-		&opportunity.Employer.LogoURL,
-		&opportunity.Employer.Industry,
+	scanTargets := append(extra,
+		&opportunity.ID, &opportunity.Title, &opportunity.Slug,
+		&opportunity.Type, &opportunity.IntakeYear, &opportunity.Status,
+		&opportunity.Description, &opportunity.Requirements, &opportunity.Location,
+		&opportunity.DisciplineTags, &opportunity.OpensAt, &opportunity.Deadline,
+		&opportunity.DaysRemaining, &opportunity.ApplicationURL, &opportunity.IsActive,
+		&opportunity.SourceURL, &opportunity.CreatedAt, &opportunity.UpdatedAt,
+		&opportunity.Employer.ID, &opportunity.Employer.Name, &opportunity.Employer.Slug,
+		&opportunity.Employer.LogoURL, &opportunity.Employer.Industry,
 	)
+	err := row.Scan(scanTargets...)
+	if err != nil {
+		return nil, err
+	}
+	return &opportunity, nil
+}
+
+func (m OpportunityModel) Insert(ctx context.Context, db DBTX, input CreateOpportunityInput) (*Opportunity, error) {
+	query := `
+		INSERT INTO opportunity
+			(employer_id, title, slug, type, intake_year, description, requirements,
+			 location, discipline_tags, opens_at, deadline, application_url, source_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id`
+
+	var id string
+	err := db.QueryRow(ctx, query,
+		input.EmployerID,
+		input.Title,
+		input.Slug,
+		input.Type,
+		input.IntakeYear,
+		input.Description,
+		input.Requirements,
+		input.Location,
+		input.DisciplineTags,
+		input.OpensAt,
+		input.Deadline,
+		input.ApplicationURL,
+		input.SourceURL,
+	).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23505":
+				return nil, ErrDuplicateOpportunitySlug
+			case "23503":
+				return nil, ErrRecordNotFound // employer doesn't exist
+			}
+		}
+		return nil, err
+	}
+
+	// Re-fetch with joins to return the full enriched shape
+	return m.GetByID(ctx, db, id)
+}
+
+func (m OpportunityModel) GetByID(ctx context.Context, db DBTX, id string) (*Opportunity, error) {
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM opportunity o
+		INNER JOIN employer e ON e.id = o.employer_id
+		WHERE o.id = $1`, selectOpportunityColumns)
+
+	opportunity, err := scanOpportunity(db.QueryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRecordNotFound
@@ -182,54 +300,146 @@ func (m OpportunityModel) GetBySlug(slug string) (*Opportunity, error) {
 		return nil, err
 	}
 
-	return &opportunity, nil
-
+	return opportunity, nil
 }
 
-func (m OpportunityModel) Update(Opportunity *Opportunity) error { return nil }
-
-func (m OpportunityModel) Delete(id string) error { return nil }
-
-func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Metadata, error) {
+func (m OpportunityModel) GetBySlug(ctx context.Context, db DBTX, slug string) (*Opportunity, error) {
 	query := fmt.Sprintf(`
-        SELECT
-            count(*) OVER(),
-            o.id, o.title, o.slug, o.type, o.intake_year,
-            CASE
-                WHEN o.is_active = false THEN 'withdrawn'
-                WHEN o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at THEN 'upcoming'
-                WHEN o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline THEN 'closed'
-                ELSE 'open'
-            END AS status,
-            o.description, o.requirements, o.location, o.discipline_tags,
-            o.opens_at, o.deadline,
-            CASE WHEN o.deadline IS NULL THEN NULL ELSE (o.deadline - CURRENT_DATE)::int END AS days_remaining,
-            o.application_url, o.is_active, o.source_url, o.created_at,
-            e.id, e.name, e.slug, e.logo_url, e.industry
-        FROM opportunity o
-        INNER JOIN employer e ON e.id = o.employer_id
-        WHERE (o.search_vector @@ plainto_tsquery('english', $1) OR $1 = '')
-        AND ($2::opportunity_type IS NULL OR o.type = $2)
-        AND (o.intake_year = $3 OR $3 = 0)
-        AND (e.industry = $4 OR $4 = '')
-        AND (o.location ILIKE '%%' || $5 || '%%' OR $5 = '')
-        AND ($6 = '' OR $6 = ANY(o.discipline_tags))
-        AND ($7::date IS NULL OR o.deadline <= $7)
-        AND ($8::date IS NULL OR o.deadline >= $8)
-        AND (
-            ($9 = 'all')
-            OR ($9 = 'withdrawn' AND o.is_active = false)
-            OR ($9 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
-            OR ($9 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
-            OR ($9 = 'open' AND o.is_active = true
-                AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
-                AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
-        )
-        ORDER BY o.%s %s, o.intake_year DESC
-        LIMIT $10 OFFSET $11
-    `, input.Filters.sortColumn(), input.Filters.sortDirection())
+		SELECT %s
+		FROM opportunity o
+		INNER JOIN employer e ON e.id = o.employer_id
+		WHERE o.slug = $1`, selectOpportunityColumns)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	opportunity, err := scanOpportunity(db.QueryRow(ctx, query, slug))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return opportunity, nil
+}
+
+func (m OpportunityModel) Update(ctx context.Context, db DBTX, id string, input UpdateOpportunityInput) (*Opportunity, error) {
+	current, err := m.GetByID(ctx, db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.Title != nil {
+		current.Title = *input.Title
+	}
+	if input.Slug != nil {
+		current.Slug = *input.Slug
+	}
+	if input.Type != nil {
+		current.Type = *input.Type
+	}
+	if input.IntakeYear != nil {
+		current.IntakeYear = *input.IntakeYear
+	}
+	if input.Description != nil {
+		current.Description = *input.Description
+	}
+	if input.Requirements != nil {
+		current.Requirements = input.Requirements
+	}
+	if input.Location != nil {
+		current.Location = *input.Location
+	}
+	if input.DisciplineTags != nil {
+		current.DisciplineTags = *input.DisciplineTags
+	}
+	if input.OpensAt != nil {
+		current.OpensAt = input.OpensAt
+	}
+	if input.Deadline != nil {
+		current.Deadline = input.Deadline
+	}
+	if input.ApplicationURL != nil {
+		current.ApplicationURL = *input.ApplicationURL
+	}
+	if input.SourceURL != nil {
+		current.SourceURL = input.SourceURL
+	}
+	if input.IsActive != nil {
+		current.IsActive = *input.IsActive
+	}
+
+	query := `
+        UPDATE opportunity
+        SET title = $1, slug = $2, type = $3, intake_year = $4,
+            description = $5, requirements = $6, location = $7,
+            discipline_tags = $8, opens_at = $9, deadline = $10,
+            application_url = $11, source_url = $12, is_active = $13
+        WHERE id = $14`
+
+	result, err := db.Exec(ctx, query,
+		current.Title, current.Slug, current.Type, current.IntakeYear,
+		current.Description, current.Requirements, current.Location,
+		current.DisciplineTags, current.OpensAt, current.Deadline,
+		current.ApplicationURL, current.SourceURL, current.IsActive,
+		id,
+	)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrDuplicateOpportunitySlug
+		}
+		return nil, err
+	}
+
+	if result.RowsAffected() == 0 {
+		return nil, ErrRecordNotFound
+	}
+
+	// Re-fetch to pick up updated_at and computed fields
+	return m.GetByID(ctx, db, id)
+}
+
+func (m OpportunityModel) Delete(ctx context.Context, db DBTX, id string) error {
+	result, err := db.Exec(ctx, `DELETE FROM opportunity WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input OpportunityFilters) ([]*Opportunity, Metadata, error) {
+	query := fmt.Sprintf(`
+		SELECT
+			count(*) OVER(),
+			%s
+		FROM opportunity o
+		INNER JOIN employer e ON e.id = o.employer_id
+		WHERE (o.search_vector @@ plainto_tsquery('english', $1) OR $1 = '')
+		  AND ($2::opportunity_type IS NULL OR o.type = $2)
+		  AND (o.intake_year = $3 OR $3 = 0)
+		  AND (e.industry = $4 OR $4 = '')
+		  AND (o.location ILIKE '%%' || $5 || '%%' OR $5 = '')
+		  AND ($6 = '' OR $6 = ANY(o.discipline_tags))
+		  AND ($7::date IS NULL OR o.deadline <= $7)
+		  AND ($8::date IS NULL OR o.deadline >= $8)
+		  AND (
+			($9 = 'all')
+			OR ($9 = 'withdrawn' AND o.is_active = false)
+			OR ($9 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
+			OR ($9 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
+			OR ($9 = 'open' AND o.is_active = true
+				AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
+				AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
+		  )
+		ORDER BY o.%s %s, o.id ASC
+		LIMIT $10 OFFSET $11
+	`, selectOpportunityColumns, input.Filters.sortColumn(), input.Filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var deadlineBefore, deadlineAfter any
@@ -245,6 +455,11 @@ func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Meta
 		typeFilter = input.Type
 	}
 
+	status := input.Status
+	if status == "" {
+		status = "all"
+	}
+
 	args := []any{
 		input.Search,
 		typeFilter,
@@ -254,12 +469,12 @@ func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Meta
 		input.Discipline,
 		deadlineBefore,
 		deadlineAfter,
-		input.Status,
+		status,
 		input.Filters.limit(),
 		input.Filters.offset(),
 	}
 
-	rows, err := m.DB.Query(ctx, query, args...)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, Metadata{}, err
 	}
@@ -269,24 +484,11 @@ func (m OpportunityModel) GetAll(input OpportunityFilters) ([]*Opportunity, Meta
 	opportunities := []*Opportunity{}
 
 	for rows.Next() {
-		var opportunity Opportunity
-
-		err := rows.Scan(
-			&totalRecords,
-			&opportunity.ID, &opportunity.Title, &opportunity.Slug,
-			&opportunity.Type, &opportunity.IntakeYear, &opportunity.Status,
-			&opportunity.Description, &opportunity.Requirements, &opportunity.Location,
-			&opportunity.DisciplineTags, &opportunity.OpensAt, &opportunity.Deadline,
-			&opportunity.DaysRemaining, &opportunity.ApplicationURL, &opportunity.IsActive,
-			&opportunity.SourceURL, &opportunity.CreatedAt,
-			&opportunity.Employer.ID, &opportunity.Employer.Name, &opportunity.Employer.Slug,
-			&opportunity.Employer.LogoURL, &opportunity.Employer.Industry,
-		)
+		opportunity, err := scanOpportunity(rows, &totalRecords)
 		if err != nil {
 			return nil, Metadata{}, err
 		}
-
-		opportunities = append(opportunities, &opportunity)
+		opportunities = append(opportunities, opportunity)
 	}
 
 	if err = rows.Err(); err != nil {
