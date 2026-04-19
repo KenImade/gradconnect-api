@@ -101,5 +101,11 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodDelete, "/api/v1/admin/opportunities/:id",
 		app.requirePermission("admin:full", app.deleteOpportunityHandler))
 
+	// Admin assessments routes
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/assessments",
+		app.requirePermission("admin:full", app.createAssessmentHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/assessments/:id",
+		app.requirePermission("admin:full", app.updateAssessmentHandler))
+
 	return app.authenticate(router)
 }
