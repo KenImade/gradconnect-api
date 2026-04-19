@@ -110,7 +110,14 @@ func (app *application) processTask(jobType string, payload []byte) error {
 			return err
 		}
 		return app.mailer.Send(data.Email, "password_reset.tmpl", data)
-
+	case "employer:recalc_ratings":
+		var data struct {
+			EmployerID string `json:"employer_id"`
+		}
+		if err := json.Unmarshal(payload, &data); err != nil {
+			return err
+		}
+		return app.models.Employers.RecalculateRatings(context.Background(), app.db, data.EmployerID)
 	default:
 		return fmt.Errorf("unknown job type: %s", jobType)
 	}

@@ -16,22 +16,25 @@ import (
 // --- Domain types ---
 
 type Employer struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Slug        string          `json:"slug"`
-	Industry    string          `json:"industry"`
-	Size        *string         `json:"size"`
-	HQLocation  *string         `json:"hq_location"`
-	Offices     json.RawMessage `json:"offices"`
-	LogoURL     *string         `json:"logo_url"`
-	Overview    *string         `json:"overview"`
-	Culture     *string         `json:"culture"`
-	Website     *string         `json:"website"`
-	SocialLinks json.RawMessage `json:"social_links"`
-	IsVerified  bool            `json:"is_verified"`
-	Version     int             `json:"version"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	ID                  string          `json:"id"`
+	Name                string          `json:"name"`
+	Slug                string          `json:"slug"`
+	Industry            string          `json:"industry"`
+	Size                *string         `json:"size"`
+	HQLocation          *string         `json:"hq_location"`
+	Offices             json.RawMessage `json:"offices"`
+	LogoURL             *string         `json:"logo_url"`
+	Overview            *string         `json:"overview"`
+	Culture             *string         `json:"culture"`
+	Website             *string         `json:"website"`
+	SocialLinks         json.RawMessage `json:"social_links"`
+	IsVerified          bool            `json:"is_verified"`
+	AvgDifficultyRating float64         `json:"avg_difficulty_rating"`
+	AvgExperienceRating float64         `json:"avg_experience_rating"`
+	ReviewCount         int             `json:"review_count"`
+	Version             int             `json:"version"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 // --- Inputs ---
@@ -138,7 +141,8 @@ func (m EmployerModel) Insert(ctx context.Context, db DBTX, input CreateEmployer
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, name, slug, industry, size, hq_location, offices,
 		          logo_url, overview, culture, website, social_links,
-		          is_verified, version, created_at, updated_at`
+		          is_verified, avg_difficulty_rating, avg_experience_rating, review_count,
+		          version, created_at, updated_at`
 
 	employer := &Employer{}
 	err := db.QueryRow(ctx, query,
@@ -167,6 +171,9 @@ func (m EmployerModel) Insert(ctx context.Context, db DBTX, input CreateEmployer
 		&employer.Website,
 		&employer.SocialLinks,
 		&employer.IsVerified,
+		&employer.AvgDifficultyRating,
+		&employer.AvgExperienceRating,
+		&employer.ReviewCount,
 		&employer.Version,
 		&employer.CreatedAt,
 		&employer.UpdatedAt,
@@ -186,7 +193,8 @@ func (m EmployerModel) GetByID(ctx context.Context, db DBTX, id string) (*Employ
 	query := `
 		SELECT id, name, slug, industry, size, hq_location, offices,
 		       logo_url, overview, culture, website, social_links,
-		       is_verified, version, created_at, updated_at
+		       is_verified, avg_difficulty_rating, avg_experience_rating, review_count,
+		       version, created_at, updated_at
 		FROM employer
 		WHERE id = $1`
 
@@ -205,6 +213,9 @@ func (m EmployerModel) GetByID(ctx context.Context, db DBTX, id string) (*Employ
 		&employer.Website,
 		&employer.SocialLinks,
 		&employer.IsVerified,
+		&employer.AvgDifficultyRating,
+		&employer.AvgExperienceRating,
+		&employer.ReviewCount,
 		&employer.Version,
 		&employer.CreatedAt,
 		&employer.UpdatedAt,
@@ -223,7 +234,8 @@ func (m EmployerModel) GetBySlug(ctx context.Context, db DBTX, slug string) (*Em
 	query := `
 		SELECT id, name, slug, industry, size, hq_location, offices,
 		       logo_url, overview, culture, website, social_links,
-		       is_verified, version, created_at, updated_at
+		       is_verified, avg_difficulty_rating, avg_experience_rating, review_count,
+		       version, created_at, updated_at
 		FROM employer
 		WHERE slug = $1`
 
@@ -242,6 +254,9 @@ func (m EmployerModel) GetBySlug(ctx context.Context, db DBTX, slug string) (*Em
 		&employer.Website,
 		&employer.SocialLinks,
 		&employer.IsVerified,
+		&employer.AvgDifficultyRating,
+		&employer.AvgExperienceRating,
+		&employer.ReviewCount,
 		&employer.Version,
 		&employer.CreatedAt,
 		&employer.UpdatedAt,
@@ -361,7 +376,8 @@ func (m EmployerModel) GetAll(ctx context.Context, db DBTX, search, industry str
 			count(*) OVER(),
 			id, name, slug, industry, size, hq_location, offices,
 			logo_url, overview, culture, website, social_links,
-			is_verified, version, created_at, updated_at
+			is_verified, avg_difficulty_rating, avg_experience_rating, review_count,
+			version, created_at, updated_at
 		FROM employer
 		WHERE (to_tsvector('english', name || ' ' || COALESCE(overview, '') || ' ' || industry || ' ' || COALESCE(hq_location, '')) @@ plainto_tsquery('english', $1) OR $1 = '')
 		  AND (industry = $2 OR $2 = '')
@@ -393,7 +409,9 @@ func (m EmployerModel) GetAll(ctx context.Context, db DBTX, search, industry str
 			&employer.Size, &employer.HQLocation, &employer.Offices,
 			&employer.LogoURL, &employer.Overview, &employer.Culture,
 			&employer.Website, &employer.SocialLinks,
-			&employer.IsVerified, &employer.Version,
+			&employer.IsVerified,
+			&employer.AvgDifficultyRating, &employer.AvgExperienceRating, &employer.ReviewCount,
+			&employer.Version,
 			&employer.CreatedAt, &employer.UpdatedAt,
 		)
 		if err != nil {
@@ -410,4 +428,32 @@ func (m EmployerModel) GetAll(ctx context.Context, db DBTX, search, industry str
 	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return employers, metadata, nil
+}
+
+func (m EmployerModel) RecalculateRatings(ctx context.Context, db DBTX, employerID string) error {
+	query := `
+        UPDATE employer
+        SET avg_difficulty_rating = sub.avg_diff,
+            avg_experience_rating = sub.avg_exp,
+            review_count = sub.cnt
+        FROM (
+            SELECT
+                COALESCE(AVG(difficulty_rating), 0)::numeric(3,2) AS avg_diff,
+                COALESCE(AVG(experience_rating), 0)::numeric(3,2) AS avg_exp,
+                COUNT(*) AS cnt
+            FROM review
+            WHERE employer_id = $1 AND status = 'approved'
+        ) AS sub
+        WHERE id = $1`
+
+	result, err := db.Exec(ctx, query, employerID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
 }
