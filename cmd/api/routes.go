@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -39,8 +40,9 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/v1/opportunities", app.listOpportunitiesHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/opportunities/:slug", app.showOpportunityBySlugHandler)
 
-	// auth
-	router.HandlerFunc(http.MethodPost, "/api/v1/auth/register", app.registerUserHandler)
+	// auth (with endpoint-specific rate limits)
+	router.HandlerFunc(http.MethodPost, "/api/v1/auth/register",
+		app.rateLimitByIP(3, time.Hour)(app.registerUserHandler))
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/google", app.googleAuthHandler)
 	router.HandlerFunc(http.MethodPost, "/api/v1/auth/login", app.loginUserHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/auth/verify-email", app.activateUserHandler)
@@ -83,7 +85,6 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/v1/reviews/:id",
 		app.requirePermission("review:edit", app.updateReviewHandler))
 
-	// Admin
 	// Admin employer routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/employers",
 		app.requirePermission("admin:full", app.createEmployerHandler))
@@ -112,5 +113,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/reviews/:id",
 		app.requirePermission("admin:full", app.moderateReviewHandler))
 
-	return app.authenticate(router)
+	// Wrap everything: global 100/min rate limit (with exemptions for endpoint-specific limiters)
+	// → authenticate middleware loads the user into context
+	return app.rateLimitAll()(app.authenticate(router))
 }

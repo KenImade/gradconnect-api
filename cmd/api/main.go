@@ -11,6 +11,7 @@ import (
 	_ "api.gradconnect.com/cmd/api/docs" // swagger docs
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/mailer"
+	"api.gradconnect.com/internal/ratelimit"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -43,12 +44,13 @@ type config struct {
 }
 
 type application struct {
-	config config
-	db     *pgxpool.Pool
-	logger *slog.Logger
-	mailer *mailer.Mailer
-	models data.Models
-	wg     sync.WaitGroup
+	config  config
+	db      *pgxpool.Pool
+	limiter *ratelimit.MemoryLimiter
+	logger  *slog.Logger
+	mailer  *mailer.Mailer
+	models  data.Models
+	wg      sync.WaitGroup
 }
 
 // @title GradConnect API
@@ -108,11 +110,12 @@ func main() {
 
 	// initialise application
 	app := &application{
-		config: cfg,
-		db:     db,
-		logger: logger,
-		mailer: mailer,
-		models: data.NewModels(db),
+		config:  cfg,
+		db:      db,
+		limiter: ratelimit.NewMemoryLimiter(),
+		logger:  logger,
+		mailer:  mailer,
+		models:  data.NewModels(db),
 	}
 
 	go app.runTaskWorker()

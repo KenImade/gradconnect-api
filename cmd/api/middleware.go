@@ -1,7 +1,9 @@
 package main
 
 import (
+	"net"
 	"net/http"
+	"time"
 
 	"api.gradconnect.com/internal/data"
 )
@@ -86,4 +88,84 @@ func (app *application) requirePermission(code string, next http.HandlerFunc) ht
 
 		next(w, r)
 	})
+}
+
+// Rate Limiters
+
+// rateLimitByIP returns middleware that rate limits requests per IP address per path.
+// Use for unauthenticated endpoints where the IP is the natural unit of identification.
+func (app *application) rateLimitByIP(limit int, window time.Duration) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+			key := "ip:" + r.URL.Path + ":" + ip
+
+			allowed, retryAfter := app.limiter.Allow(key, limit, window)
+			if !allowed {
+				app.rateLimitExceededResponse(w, r, retryAfter)
+				return
+			}
+			next(w, r)
+		}
+	}
+}
+
+// rateLimitBySession returns middleware that rate limits requests per session.
+// Falls back to IP-based limiting if no session cookie is present.
+func (app *application) rateLimitBySession(limit int, window time.Duration) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			var key string
+			if cookie, err := r.Cookie("session_id"); err == nil {
+				key = "session:" + r.URL.Path + ":" + cookie.Value
+			} else {
+				ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+				key = "ip:" + r.URL.Path + ":" + ip
+			}
+
+			allowed, retryAfter := app.limiter.Allow(key, limit, window)
+			if !allowed {
+				app.rateLimitExceededResponse(w, r, retryAfter)
+				return
+			}
+			next(w, r)
+		}
+	}
+}
+
+// rateLimitAll applies a global rate limit to all requests except those with
+// their own specific limiter (register, login, forgot-password, resend-verification).
+// Uses session ID if present, falls back to IP.
+func (app *application) rateLimitAll() func(http.Handler) http.Handler {
+	// Paths with their own inline or middleware-specific rate limits
+	exemptPaths := map[string]bool{
+		"/api/v1/auth/register":            true,
+		"/api/v1/auth/login":               true,
+		"/api/v1/auth/forgot-password":     true,
+		"/api/v1/auth/resend-verification": true,
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if exemptPaths[r.URL.Path] {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			var key string
+			if cookie, err := r.Cookie("session_id"); err == nil {
+				key = "global:session:" + cookie.Value
+			} else {
+				ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+				key = "global:ip:" + ip
+			}
+
+			allowed, retryAfter := app.limiter.Allow(key, 100, time.Minute)
+			if !allowed {
+				app.rateLimitExceededResponse(w, r, retryAfter)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }

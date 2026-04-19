@@ -155,6 +155,13 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	limitKey := "login-failures:" + input.Email
+	allowed, retryAfter := app.limiter.Peek(limitKey, 5, 15*time.Minute)
+	if !allowed {
+		app.rateLimitExceededResponse(w, r, retryAfter)
+		return
+	}
+
 	user, err := app.models.Users.GetByEmail(r.Context(), app.db, input.Email)
 	if err != nil {
 		switch {
@@ -172,9 +179,12 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if !match {
+		app.limiter.Allow(limitKey, 5, 15*time.Minute) // increment failure
 		app.invalidCredentialsResponse(w, r)
 		return
 	}
+
+	app.limiter.Reset(limitKey)
 
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
@@ -282,6 +292,13 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 // @Router       /auth/resend-verification [post]
 func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r *http.Request) {
 	user := app.contextGetUser(r)
+
+	limitKey := "resend-verification:" + user.ID
+	allowed, retryAfter := app.limiter.Allow(limitKey, 1, 5*time.Minute)
+	if !allowed {
+		app.rateLimitExceededResponse(w, r, retryAfter)
+		return
+	}
 
 	if user.EmailVerified {
 		app.errorResponse(w, r, http.StatusConflict, "email is already verified")
@@ -526,6 +543,13 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 	data.ValidateEmail(v, input.Email)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	limitKey := "forgot-password:" + input.Email
+	allowed, retryAfter := app.limiter.Allow(limitKey, 3, time.Hour)
+	if !allowed {
+		app.rateLimitExceededResponse(w, r, retryAfter)
 		return
 	}
 

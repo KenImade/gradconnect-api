@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // ErrorResponse represents the standard JSON error structure.
@@ -75,4 +76,25 @@ func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r 
 func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+}
+
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request, retryAfter time.Duration) {
+	seconds := int(retryAfter.Seconds())
+	if seconds < 1 {
+		seconds = 1
+	}
+
+	headers := make(http.Header)
+	headers.Set("Retry-After", fmt.Sprintf("%d", seconds))
+
+	app.errorResponseWithHeaders(w, r, http.StatusTooManyRequests, "rate limit exceeded, please try again later", headers)
+}
+
+func (app *application) errorResponseWithHeaders(w http.ResponseWriter, r *http.Request, status int, message any, headers http.Header) {
+	env := envelope{"error": message}
+	err := app.writeJSON(w, status, env, headers)
+	if err != nil {
+		app.logger.Error(err.Error())
+		w.WriteHeader(500)
+	}
 }
