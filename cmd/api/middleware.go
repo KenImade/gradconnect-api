@@ -110,29 +110,6 @@ func (app *application) rateLimitByIP(limit int, window time.Duration) func(http
 	}
 }
 
-// rateLimitBySession returns middleware that rate limits requests per session.
-// Falls back to IP-based limiting if no session cookie is present.
-func (app *application) rateLimitBySession(limit int, window time.Duration) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			var key string
-			if cookie, err := r.Cookie("session_id"); err == nil {
-				key = "session:" + r.URL.Path + ":" + cookie.Value
-			} else {
-				ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-				key = "ip:" + r.URL.Path + ":" + ip
-			}
-
-			allowed, retryAfter := app.limiter.Allow(key, limit, window)
-			if !allowed {
-				app.rateLimitExceededResponse(w, r, retryAfter)
-				return
-			}
-			next(w, r)
-		}
-	}
-}
-
 // rateLimitAll applies a global rate limit to all requests except those with
 // their own specific limiter (register, login, forgot-password, resend-verification).
 // Uses session ID if present, falls back to IP.

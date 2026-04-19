@@ -151,5 +151,11 @@ func openDB(cfg config, logger *slog.Logger) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
+	logger.Info("database connection pool established",
+		"max_conns", config.MaxConns,
+		"min_conns", config.MinConns,
+		"max_idle_time", config.MaxConnIdleTime,
+	)
+
 	return pool, nil
 }

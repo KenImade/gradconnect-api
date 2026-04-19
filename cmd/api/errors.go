@@ -94,7 +94,7 @@ func (app *application) errorResponseWithHeaders(w http.ResponseWriter, r *http.
 	env := envelope{"error": message}
 	err := app.writeJSON(w, status, env, headers)
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.logger.Error(err.Error(), "method", r.Method, "uri", r.URL.RequestURI())
 		w.WriteHeader(500)
 	}
 }

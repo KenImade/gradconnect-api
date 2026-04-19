@@ -119,5 +119,3 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 		app.serverErrorResponse(w, r, err)
 	}
 }
-
-func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {}
