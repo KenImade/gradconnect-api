@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS assessment_profile (
     timeline_weeks INTEGER,
     prep_guide TEXT,
     version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
