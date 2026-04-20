@@ -29,8 +29,8 @@ type Employer struct {
 	Website             *string         `json:"website"`
 	SocialLinks         json.RawMessage `json:"social_links"`
 	IsVerified          bool            `json:"is_verified"`
-	AvgDifficultyRating float64         `json:"avg_difficulty_rating"`
-	AvgExperienceRating float64         `json:"avg_experience_rating"`
+	AvgDifficultyRating *float64        `json:"avg_difficulty_rating"`
+	AvgExperienceRating *float64        `json:"avg_experience_rating"`
 	ReviewCount         int             `json:"review_count"`
 	Version             int             `json:"version"`
 	CreatedAt           time.Time       `json:"created_at"`
@@ -438,8 +438,8 @@ func (m EmployerModel) RecalculateRatings(ctx context.Context, db DBTX, employer
             review_count = sub.cnt
         FROM (
             SELECT
-                COALESCE(AVG(difficulty_rating), 0)::numeric(3,2) AS avg_diff,
-                COALESCE(AVG(experience_rating), 0)::numeric(3,2) AS avg_exp,
+                AVG(difficulty_rating)::numeric(3,2) AS avg_diff,
+                AVG(experience_rating)::numeric(3,2) AS avg_exp,
                 COUNT(*) AS cnt
             FROM review
             WHERE employer_id = $1 AND status = 'approved'
