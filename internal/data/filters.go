@@ -50,11 +50,11 @@ func (f Filters) offset() int {
 
 // Metadata
 type Metadata struct {
-	CurrentPage  int `json:"current_page,omitzero"`
-	PageSize     int `json:"page_size,omitzero"`
-	FirstPage    int `json:"first_page,omitzero"`
-	LastPage     int `json:"last_page,omitzero"`
-	TotalRecords int `json:"total_records,omitzero"`
+	CurrentPage  int `json:"current_page"`
+	PageSize     int `json:"page_size"`
+	FirstPage    int `json:"first_page"`
+	LastPage     int `json:"last_page"`
+	TotalRecords int `json:"total_records"`
 }
 
 func calculateMetadata(totalRecords, page, pageSize int) Metadata {
