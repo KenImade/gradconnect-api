@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/getsentry/sentry-go"
 )
 
 // ErrorResponse represents the standard JSON error structure.
@@ -41,6 +43,10 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 // serverErrorResponse handles 500 Internal Server Error.
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.logError(r, err)
+
+	if hub := sentry.GetHubFromContext(r.Context()); hub != nil {
+		hub.CaptureException(err)
+	}
 
 	message := "the server encountered a problem and could not process your request"
 	app.errorResponse(w, r, http.StatusInternalServerError, message)

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/julienschmidt/httprouter"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
@@ -131,7 +132,23 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/v1/admin/import/:id",
 		app.requirePermission("admin:full", app.getImportJobHandler))
 
-	// Wrap everything: global 100/min rate limit (with exemptions for endpoint-specific limiters)
-	// → authenticate middleware loads the user into context
-	return app.logRequests(app.enableCORS(app.rateLimitAll()(app.authenticate(router))))
+	// Build the middleware chain. Inner-to-outer order:
+	//   router → authenticate → rateLimitAll → enableCORS → logRequests → Sentry
+	//
+	// Sentry is outermost so it sees every request before any other middleware
+	// runs, captures panics before they're handled, and tags every Sentry event
+	// with the full request context (URL, method, headers).
+	sentryMiddleware := sentryhttp.New(sentryhttp.Options{
+		Repanic: true, // re-panic after capturing so logRequests can record the 500
+	})
+
+	return sentryMiddleware.Handle(
+		app.logRequests(
+			app.enableCORS(
+				app.rateLimitAll()(
+					app.authenticate(router),
+				),
+			),
+		),
+	)
 }

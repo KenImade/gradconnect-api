@@ -13,6 +13,7 @@ import (
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/ratelimit"
+	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -49,6 +50,12 @@ type config struct {
 	import_     struct {
 		storageDir string
 	}
+
+	sentry struct {
+		dsn              string
+		env              string
+		tracesSampleRate float64
+	}
 }
 
 type application struct {
@@ -78,9 +85,9 @@ func main() {
 
 	// command line configuration values
 	flag.IntVar(&cfg.port, "port", cfg.port, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.env, "env", os.Getenv("GRADCONNECT_ENV"), "Environment (development|staging|production)")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GRADCONNECT_DB_DSN"), "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.minConns, "db-min-conns", 5, "PostgreSQL min connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
@@ -88,18 +95,22 @@ func main() {
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "f111705a4bf447", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "eb96d8aef81e66", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "GradConnect <no-reply@gradconnect.ng>", "SMTP sender")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GRADCONNECT_SMTP_USERNAME"), "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("GRADCONNECT_SMTP_PASSWORD"), "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("GRADCONNECT_SMTP_SENDER"), "SMTP sender")
 
 	flag.StringVar(&cfg.frontendURL, "frontend-url", os.Getenv("GRADCONNECT_FRONTEND_URL"), "Frontend URL")
 	flag.StringVar(&cfg.baseURL, "base-url", os.Getenv("GRADCONNECT_BASE_URL"), "Base URL")
 
-	flag.StringVar(&cfg.google.clientID, "google-client-id", "522466790021-q29p5hhcfenk8qrrr5dq5mskujduevq6.apps.googleusercontent.com", "Google OAuth client ID")
-	flag.StringVar(&cfg.google.clientSecret, "google-client-secret", "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", "Google OAuth client secret")
-	flag.StringVar(&cfg.google.redirectURL, "google-redirect-url", "http://localhost:3000", "Google OAuth redirect URL")
+	flag.StringVar(&cfg.google.clientID, "google-client-id", os.Getenv("GRADCONNECT_GOOGLE_CLIENT_ID"), "Google OAuth client ID")
+	flag.StringVar(&cfg.google.clientSecret, "google-client-secret", os.Getenv("GRADCONNECT_GOOGLE_CLIENT_SECRET"), "Google OAuth client secret")
+	flag.StringVar(&cfg.google.redirectURL, "google-redirect-url", os.Getenv("GRADCONNECT_GOOGLE_REDIRECT_URL"), "Google OAuth redirect URL")
 
 	flag.StringVar(&cfg.import_.storageDir, "import-storage-dir", "/tmp/gradconnect-imports", "Directory for CSV imports")
+
+	flag.StringVar(&cfg.sentry.dsn, "sentry-dsn", os.Getenv("GRADCONNECT_SENTRY_DSN"), "Sentry DSN")
+	flag.StringVar(&cfg.sentry.env, "sentry-env", os.Getenv("GRADCONNECT_SENTRY_ENV"), "Sentry environment tag")
+	flag.Float64Var(&cfg.sentry.tracesSampleRate, "sentry-traces-rate", 0.1, "Sentry traces sample rate")
 
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
@@ -110,6 +121,35 @@ func main() {
 
 	// logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	if cfg.sentry.env == "" {
+		cfg.sentry.env = cfg.env
+	}
+
+	if cfg.sentry.dsn != "" {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn:              cfg.sentry.dsn,
+			Environment:      cfg.sentry.env,
+			Release:          version,
+			EnableTracing:    true,
+			TracesSampleRate: cfg.sentry.tracesSampleRate,
+			BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+				if cfg.env == "development" {
+					return nil
+				}
+				return event
+			},
+		})
+		if err != nil {
+			logger.Error("sentry init failed", "err", err)
+			os.Exit(1)
+		}
+
+		defer sentry.Flush(2 * time.Second)
+		logger.Info("sentry enabled", "env", cfg.sentry.env)
+	} else {
+		logger.Warn("sentry not configured; SENTRY_DSN missing")
+	}
 
 	// database
 	db, err := openDB(cfg, logger)

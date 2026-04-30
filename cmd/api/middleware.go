@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"api.gradconnect.com/internal/data"
+	"github.com/getsentry/sentry-go"
 )
 
 func (app *application) authenticate(next http.Handler) http.Handler {
@@ -39,6 +40,12 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		}
 
 		r = app.contextSetUser(r, user)
+		if hub := sentry.GetHubFromContext(r.Context()); hub != nil {
+			hub.Scope().SetUser(sentry.User{
+				ID:    user.ID,
+				Email: user.Email,
+			})
+		}
 		next.ServeHTTP(w, r)
 	})
 }
