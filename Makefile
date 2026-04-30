@@ -13,7 +13,10 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api -port=4000 -db-dsn=${GRADCONNECT_DB_DSN}
+	go run ./cmd/api -port=4000 -db-dsn=${GRADCONNECT_DB_DSN} \
+  -cors-trusted-origins=http://localhost:3000 \
+  -frontend-url=http://localhost:3000 \
+  -base-url=http://localhost:4000
 
 ## build/api: build the cmd/api application
 .PHONY: build/api
@@ -44,11 +47,17 @@ db/migrations/down: confirm
 	@echo 'Running down migrations...'
 	migrate -path ./migrations -database ${GRADCONNECT_DB_DSN} down
 
-## db/seed: seed the database with test data
-.PHONY: db/seed
-db/seed:
+## db/seed/all: seed the database with all test data
+.PHONY: db/seed/all
+db/seed/all:
 	@echo 'Seeding database...'
 	docker exec -i gradconnect-db psql -U gradconnect -d gradconnect < ./migrations/seed/seed.sql
+
+## db/seed/reviews: seed the database with reviews test data
+.PHONY: db/seed/reviews
+db/seed/reviews:
+	@echo 'Seeding database...'
+	docker exec -i gradconnect-db psql -U gradconnect -d gradconnect < ./migrations/seed/reviews_seed.sql
 
 ## docs/generate: generate Swagger/OpenAPI documentation
 .PHONY: docs/generate

@@ -69,20 +69,18 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	// --- TRANSACTION START ---
 	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
-		// Insert the user
 		if err := app.models.Users.Insert(r.Context(), tx, user); err != nil {
 			return err
 		}
 
-		// Create activation token
 		var err error
 		token, err = app.models.Tokens.New(r.Context(), tx, user.ID, 24*time.Hour, data.ScopeActivation)
 		if err != nil {
 			return err
 		}
 
-		// Queue the welcome email task
 		taskPayload := map[string]any{
+			"base_url":         app.config.baseURL,
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
@@ -91,7 +89,6 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			return err
 		}
 
-		// Create session
 		session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
 		return err
 	})
@@ -120,7 +117,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/api/v1/users/%s", user.ID))
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, headers)
+	err = app.writeJSON(w, http.StatusCreated, envelope{"data": user}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -204,7 +201,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 		Path:     "/",
 	})
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -228,7 +225,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	v := validator.New()
 	data.ValidateTokenPlaintext(v, tokenPlaintext)
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=invalid", http.StatusFound)
 		return
 	}
 
@@ -269,14 +266,19 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			http.Redirect(w, r, app.config.frontendURL+"/verify/failed", http.StatusFound)
+			http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=invalid", http.StatusFound)
+		// If you have specific expired / already-verified error sentinels, branch here:
+		// case errors.Is(err, data.ErrTokenExpired):
+		//     http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=expired", http.StatusFound)
 		default:
-			app.serverErrorResponse(w, r, err)
+			// On unexpected errors, still redirect rather than leak JSON
+			app.logger.Error("activate user failed", "err", err)
+			http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=error", http.StatusFound)
 		}
 		return
 	}
 
-	http.Redirect(w, r, app.config.frontendURL+"/verify/success", http.StatusFound)
+	http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=success", http.StatusFound)
 }
 
 // resendVerificationEmailHandler godoc
@@ -312,6 +314,7 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 		}
 
 		taskPayload := map[string]any{
+			"base_url":         app.config.baseURL,
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
@@ -581,9 +584,10 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		taskPayload := map[string]any{
-			"user_email":  user.Email,
-			"first_name":  user.FirstName,
-			"reset_token": token.Plaintext,
+			"frontend_url": app.config.frontendURL,
+			"user_email":   user.Email,
+			"first_name":   user.FirstName,
+			"reset_token":  token.Plaintext,
 		}
 		return app.models.Tasks.Insert(r.Context(), tx, "email:password_reset", taskPayload)
 	})

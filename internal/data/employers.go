@@ -51,6 +51,7 @@ type CreateEmployerInput struct {
 	Culture     *string         `json:"culture"`
 	Website     *string         `json:"website"`
 	SocialLinks json.RawMessage `json:"social_links"`
+	IsVerified  bool            `json:"is_verified"`
 }
 
 type UpdateEmployerInput struct {

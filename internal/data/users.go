@@ -85,7 +85,8 @@ type ResetPasswordInput struct {
 type CurrentUserResponse struct {
 	ID                 string          `json:"id"`
 	Email              string          `json:"email"`
-	Name               string          `json:"name"`
+	FirstName          string          `json:"first_name"`
+	LastName           string          `json:"last_name"`
 	AuthProvider       string          `json:"auth_provider"`
 	EmailVerified      bool            `json:"email_verified"`
 	DegreeDiscipline   *string         `json:"degree_discipline"`

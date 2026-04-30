@@ -118,6 +118,42 @@ func (app *application) updateApplicationHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// removeApplicationHandler godoc
+// @Summary      Remove an application from the tracker
+// @Description  Delete an application from the tracker belonging to the authenticated user.
+// @Tags         ApplicationTrackers
+// @Produce      json
+// @Param        id  path  string  true  "Tracker ID"
+// @Success      204
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /me/applications/{id} [delete]
+func (app *application) removeApplicationHandler(w http.ResponseWriter, r *http.Request) {
+	trackerID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	user := app.contextGetUser(r)
+
+	err = app.models.ApplicationTracker.Remove(r.Context(), app.db, user.ID, trackerID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+}
+
 // listApplicationsHandler godoc
 // @Summary      List the current user's application tracker entries
 // @Description  Returns the authenticated user's tracked applications with pagination and optional status filter.

@@ -108,7 +108,7 @@ VALUES
     'SHL',
     'competency-based',
     8,
-    '## How to prepare\n\nStart with SHL-style numerical and verbal reasoning practice. The official SHL app is the best resource. For the video interview, use the STAR method for every answer. At the assessment centre, be collaborative in the group exercise — assessors watch teamwork as much as individual contribution.'
+    E'## How to prepare\n\nStart with SHL-style numerical and verbal reasoning practice. The official SHL app is the best resource. For the video interview, use the STAR method for every answer. At the assessment centre, be collaborative in the group exercise — assessors watch teamwork as much as individual contribution.'
 ),
 (
     'b1b2c3d4-1112-4000-8000-000000000002',
@@ -122,7 +122,7 @@ VALUES
     'SHL',
     'competency-based',
     4,
-    '## How to prepare\n\nThe internship process is shorter and less intense than the graduate programme. Focus on numerical reasoning practice and have clear answers for why banking and why Access Bank.'
+    E'## How to prepare\n\nThe internship process is shorter and less intense than the graduate programme. Focus on numerical reasoning practice and have clear answers for why banking and why Access Bank.'
 ),
 (
     'b1b2c3d4-2222-4000-8000-000000000003',
@@ -137,7 +137,7 @@ VALUES
     'Korn Ferry',
     'technical',
     10,
-    '## How to prepare\n\nKorn Ferry tests are tougher than SHL — practice logical reasoning specifically. For the partner interview, brush up on IFRS basics and have a view on a recent audit controversy in Nigeria. The group exercise rewards structured thinking and clear communication over dominance.'
+    E'## How to prepare\n\nKorn Ferry tests are tougher than SHL — practice logical reasoning specifically. For the partner interview, brush up on IFRS basics and have a view on a recent audit controversy in Nigeria. The group exercise rewards structured thinking and clear communication over dominance.'
 ),
 (
     'b1b2c3d4-3333-4000-8000-000000000004',
@@ -152,7 +152,7 @@ VALUES
     'Custom',
     'technical',
     6,
-    '## How to prepare\n\nDangote values operational mindset and willingness to work in non-Lagos locations (Obajana, Apapa). Be ready to discuss why you want to work in manufacturing/FMCG. The technical interview is role-specific — engineers get engineering questions, finance gets accounting questions.'
+    E'## How to prepare\n\nDangote values operational mindset and willingness to work in non-Lagos locations (Obajana, Apapa). Be ready to discuss why you want to work in manufacturing/FMCG. The technical interview is role-specific — engineers get engineering questions, finance gets accounting questions.'
 ),
 (
     'b1b2c3d4-4444-4000-8000-000000000005',
@@ -167,7 +167,7 @@ VALUES
     'Custom',
     'case study',
     12,
-    '## How to prepare\n\nShell''s process is one of the longest and most rigorous in Nigeria. Study the Shell Graduate website thoroughly — their values framework drives every stage. The online assessment includes a unique situational judgement test. For the assessment day, expect a technical deep-dive in your discipline area.'
+    E'## How to prepare\n\nShell''s process is one of the longest and most rigorous in Nigeria. Study the Shell Graduate website thoroughly — their values framework drives every stage. The online assessment includes a unique situational judgement test. For the assessment day, expect a technical deep-dive in your discipline area.'
 ),
 (
     'b1b2c3d4-5555-4000-8000-000000000006',
@@ -182,7 +182,7 @@ VALUES
     NULL,
     'technical',
     3,
-    '## How to prepare\n\nFlutterwave cares about shipping ability over credentials. Make sure your GitHub has real projects, not just tutorials. The take-home is evaluated on code quality, test coverage, and documentation — not just whether it works. For the system design round, be ready to discuss trade-offs at scale.'
+    E'## How to prepare\n\nFlutterwave cares about shipping ability over credentials. Make sure your GitHub has real projects, not just tutorials. The take-home is evaluated on code quality, test coverage, and documentation — not just whether it works. For the system design round, be ready to discuss trade-offs at scale.'
 );
 
 -- ============================================================================

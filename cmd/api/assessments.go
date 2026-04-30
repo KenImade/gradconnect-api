@@ -159,3 +159,94 @@ func (app *application) listAssessmentsHandler(w http.ResponseWriter, r *http.Re
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+// showAdminAssessmentHandler godoc
+// @Summary      Get an assessment (admin)
+// @Description  Fetch a single assessment by UUID with employer stub embedded.
+// @Tags         Admin
+// @Produce      json
+// @Security     SessionCookie
+// @Param        id   path  string  true  "Assessment UUID"
+// @Success      200  {object}  envelope{data=data.Assessment}
+// @Failure      401  {object}  envelope{error=string}
+// @Failure      403  {object}  envelope{error=string}
+// @Failure      404  {object}  envelope{error=string}
+// @Failure      500  {object}  envelope{error=object}
+// @Router       /admin/assessments/{id} [get]
+func (app *application) showAdminAssessmentHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	assessment, err := app.models.Assessments.GetByID(r.Context(), app.db, id)
+	if err != nil {
+		if errors.Is(err, data.ErrRecordNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": assessment}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// listAdminAssessmentsHandler godoc
+// @Summary      List assessments (admin)
+// @Description  List all assessment profiles across all employers, with employer stub embedded.
+// @Tags         Admin
+// @Produce      json
+// @Security     SessionCookie
+// @Param        q            query  string  false  "Search programme type or employer name (case-insensitive substring)"
+// @Param        employer_id  query  string  false  "Filter to a single employer (UUID)"
+// @Param        sort         query  string  false  "Sort field (prefix with - for descending)"  Enums(programme_type, created_at, updated_at, -programme_type, -created_at, -updated_at)  default(-updated_at)
+// @Param        page         query  int     false  "Page number"  default(1)
+// @Param        page_size    query  int     false  "Items per page (max 50)"  default(50)
+// @Success      200  {object}  envelope{data=[]data.Assessment,pagination=data.Metadata}
+// @Failure      401  {object}  envelope{error=string}
+// @Failure      403  {object}  envelope{error=string}
+// @Failure      422  {object}  envelope{error=object}
+// @Failure      500  {object}  envelope{error=object}
+// @Router       /admin/assessments [get]
+func (app *application) listAdminAssessmentsHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.AssessmentFilters
+
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Search = app.readString(qs, "q", "")
+	input.EmployerID = app.readString(qs, "employer_id", "")
+
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 50, v)
+	input.Filters.Sort = app.readString(qs, "sort", "-updated_at")
+	input.Filters.SortSafeList = []string{
+		"programme_type", "created_at", "updated_at",
+		"-programme_type", "-created_at", "-updated_at",
+	}
+
+	if input.EmployerID != "" {
+		v.Check(validator.IsValidUUID(input.EmployerID), "employer_id", "must be a valid UUID")
+	}
+
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	assessments, metadata, err := app.models.Assessments.GetAll(r.Context(), app.db, input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": assessments, "pagination": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

@@ -74,6 +74,10 @@ type CreateApplicationInput struct {
 	Notes         *string           `json:"notes"`
 }
 
+type DeleteApplicationInput struct {
+	ApplicationID string
+}
+
 type UpdateApplicationInput struct {
 	Status *ApplicationStatus `json:"status"`
 	Notes  *string            `json:"notes"`

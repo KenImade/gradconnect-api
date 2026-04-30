@@ -29,7 +29,8 @@ func (app *application) getCurrentUserHandler(w http.ResponseWriter, r *http.Req
 	response := data.CurrentUserResponse{
 		ID:                 user.ID,
 		Email:              user.Email,
-		Name:               user.FirstName + " " + user.LastName,
+		FirstName:          user.FirstName,
+		LastName:           user.LastName,
 		AuthProvider:       user.AuthProvider,
 		EmailVerified:      user.EmailVerified,
 		DegreeDiscipline:   user.DegreeDiscipline,

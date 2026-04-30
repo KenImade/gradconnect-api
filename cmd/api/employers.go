@@ -92,6 +92,40 @@ func (app *application) showEmployerBySlugHandler(w http.ResponseWriter, r *http
 	}
 }
 
+// showEmployerByIDHandler godoc
+// @Summary      Show employer
+// @Description  Get a full employer hub profile by id
+// @Tags         Admin
+// @Produce      json
+// @Param        id  path  string  true  "Employer id"
+// @Success      200  {object}  envelope{data=data.Employer}
+// @Failure      404  {object}  envelope{error=object}
+// @Failure      500  {object}  envelope{error=object}
+// @Router       /admin/employers/{id} [get]
+func (app *application) showEmployerByIDHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	employer, err := app.models.Employers.GetByID(r.Context(), app.db, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": employer}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // updateEmployerHandler godoc
 // @Summary      Update an employer (admin only)
 // @Description  Updates an existing employer profile. Requires admin:full permission.

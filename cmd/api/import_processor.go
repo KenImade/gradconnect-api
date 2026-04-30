@@ -168,18 +168,18 @@ func (app *application) importOpportunities(ctx context.Context, tx pgx.Tx, head
 			input.DisciplineTags = splitAndTrim(row[idx], "|")
 		}
 		if idx, ok := colIdx["opens_at"]; ok && row[idx] != "" {
-			t, err := time.Parse("2006-01-02", row[idx])
+			d, err := data.ParseDate(row[idx])
 			if err != nil {
 				return 0, fmt.Errorf("row %d: invalid opens_at: %w", i+2, err)
 			}
-			input.OpensAt = &t
+			input.OpensAt = &d
 		}
 		if idx, ok := colIdx["deadline"]; ok && row[idx] != "" {
-			t, err := time.Parse("2006-01-02", row[idx])
+			d, err := data.ParseDate(row[idx])
 			if err != nil {
 				return 0, fmt.Errorf("row %d: invalid deadline: %w", i+2, err)
 			}
-			input.Deadline = &t
+			input.Deadline = &d
 		}
 		if idx, ok := colIdx["source_url"]; ok && row[idx] != "" {
 			v := row[idx]

@@ -25,8 +25,8 @@ type Opportunity struct {
 	Requirements   *string      `json:"requirements"`
 	Location       string       `json:"location"`
 	DisciplineTags []string     `json:"discipline_tags"`
-	OpensAt        *time.Time   `json:"opens_at"`
-	Deadline       *time.Time   `json:"deadline"`
+	OpensAt        *Date        `json:"opens_at"`
+	Deadline       *Date        `json:"deadline"`
 	DaysRemaining  *int         `json:"days_remaining"` // computed
 	ApplicationURL string       `json:"application_url"`
 	IsActive       bool         `json:"is_active"`
@@ -47,35 +47,37 @@ type EmployerStub struct {
 // --- Inputs ---
 
 type CreateOpportunityInput struct {
-	EmployerID     string     `json:"employer_id"`
-	Title          string     `json:"title"`
-	Slug           string     `json:"slug"`
-	Type           string     `json:"type"`
-	IntakeYear     int        `json:"intake_year"`
-	Description    string     `json:"description"`
-	Requirements   *string    `json:"requirements"`
-	Location       string     `json:"location"`
-	DisciplineTags []string   `json:"discipline_tags"`
-	OpensAt        *time.Time `json:"opens_at"`
-	Deadline       *time.Time `json:"deadline"`
-	ApplicationURL string     `json:"application_url"`
-	SourceURL      *string    `json:"source_url"`
+	EmployerID     string   `json:"employer_id"`
+	Title          string   `json:"title"`
+	Slug           string   `json:"slug"`
+	Type           string   `json:"type"`
+	IntakeYear     int      `json:"intake_year"`
+	Description    string   `json:"description"`
+	Requirements   *string  `json:"requirements"`
+	Location       string   `json:"location"`
+	DisciplineTags []string `json:"discipline_tags"`
+	OpensAt        *Date    `json:"opens_at"`
+	Deadline       *Date    `json:"deadline"`
+	ApplicationURL string   `json:"application_url"`
+	IsActive       bool     `json:"is_active"`
+	SourceURL      *string  `json:"source_url"`
 }
 
 type UpdateOpportunityInput struct {
-	Title          *string    `json:"title"`
-	Slug           *string    `json:"slug"`
-	Type           *string    `json:"type"`
-	IntakeYear     *int       `json:"intake_year"`
-	Description    *string    `json:"description"`
-	Requirements   *string    `json:"requirements"`
-	Location       *string    `json:"location"`
-	DisciplineTags *[]string  `json:"discipline_tags"`
-	OpensAt        *time.Time `json:"opens_at"`
-	Deadline       *time.Time `json:"deadline"`
-	ApplicationURL *string    `json:"application_url"`
-	SourceURL      *string    `json:"source_url"`
-	IsActive       *bool      `json:"is_active"`
+	EmployerID     *string   `json:"employer_id"`
+	Title          *string   `json:"title"`
+	Slug           *string   `json:"slug"`
+	Type           *string   `json:"type"`
+	IntakeYear     *int      `json:"intake_year"`
+	Description    *string   `json:"description"`
+	Requirements   *string   `json:"requirements"`
+	Location       *string   `json:"location"`
+	DisciplineTags *[]string `json:"discipline_tags"`
+	OpensAt        *Date     `json:"opens_at"`
+	Deadline       *Date     `json:"deadline"`
+	ApplicationURL *string   `json:"application_url"`
+	SourceURL      *string   `json:"source_url"`
+	IsActive       *bool     `json:"is_active"`
 }
 
 type OpportunityFilters struct {
@@ -128,7 +130,7 @@ func ValidateCreateOpportunityInput(v *validator.Validator, input CreateOpportun
 
 	if input.OpensAt != nil && input.Deadline != nil {
 		v.Check(
-			input.OpensAt.Before(*input.Deadline) || input.OpensAt.Equal(*input.Deadline),
+			input.OpensAt.BeforeDate(*input.Deadline) || input.OpensAt.EqualDate(*input.Deadline),
 			"opens_at",
 			"must be before or equal to deadline",
 		)
@@ -181,7 +183,7 @@ func ValidateUpdateOpportunityInput(v *validator.Validator, input UpdateOpportun
 	}
 	if input.OpensAt != nil && input.Deadline != nil {
 		v.Check(
-			input.OpensAt.Before(*input.Deadline) || input.OpensAt.Equal(*input.Deadline),
+			input.OpensAt.BeforeDate(*input.Deadline) || input.OpensAt.EqualDate(*input.Deadline),
 			"opens_at",
 			"must be before or equal to deadline",
 		)
@@ -427,14 +429,16 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		  AND ($7::date IS NULL OR o.deadline <= $7)
 		  AND ($8::date IS NULL OR o.deadline >= $8)
 		  AND (
-			($9 = 'all')
-			OR ($9 = 'withdrawn' AND o.is_active = false)
-			OR ($9 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
-			OR ($9 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
-			OR ($9 = 'open' AND o.is_active = true
-				AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
-				AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
-		  )
+				($9 = 'all')
+				OR ($9 = 'withdrawn' AND o.is_active = false)
+				OR ($9 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
+				OR ($9 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
+				OR ($9 = 'open' AND o.is_active = true
+					AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
+					AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
+				OR ($9 = 'open_or_upcoming' AND o.is_active = true
+					AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
+			)
 		ORDER BY o.%s %s, o.id ASC
 		LIMIT $10 OFFSET $11
 	`, selectOpportunityColumns, input.Filters.sortColumn(), input.Filters.sortDirection())
@@ -455,11 +459,6 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		typeFilter = input.Type
 	}
 
-	status := input.Status
-	if status == "" {
-		status = "all"
-	}
-
 	args := []any{
 		input.Search,
 		typeFilter,
@@ -469,7 +468,7 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		input.Discipline,
 		deadlineBefore,
 		deadlineAfter,
-		status,
+		input.Status,
 		input.Filters.limit(),
 		input.Filters.offset(),
 	}

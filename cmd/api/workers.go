@@ -89,6 +89,7 @@ func (app *application) processTask(jobType string, payload []byte) error {
 		return app.processImport(data.ImportJobID)
 	case "email:verify":
 		var data struct {
+			BaseURL         string `json:"base_url"`
 			Email           string `json:"user_email"`
 			FirstName       string `json:"first_name"`
 			ActivationToken string `json:"activation_token"`
@@ -110,9 +111,10 @@ func (app *application) processTask(jobType string, payload []byte) error {
 
 	case "email:password_reset":
 		var data struct {
-			Email      string `json:"user_email"`
-			FirstName  string `json:"first_name"`
-			ResetToken string `json:"reset_token"`
+			FrontendURL string `json:"frontend_url"`
+			Email       string `json:"user_email"`
+			FirstName   string `json:"first_name"`
+			ResetToken  string `json:"reset_token"`
 		}
 		if err := json.Unmarshal(payload, &data); err != nil {
 			return err

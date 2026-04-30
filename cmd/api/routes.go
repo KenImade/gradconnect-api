@@ -78,6 +78,8 @@ func (app *application) routes() http.Handler {
 		app.requireVerifiedUser(app.addApplicationHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/me/applications/:id",
 		app.requireVerifiedUser(app.updateApplicationHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/v1/me/applications/:id",
+		app.requireVerifiedUser(app.removeApplicationHandler))
 
 	// review
 	router.HandlerFunc(http.MethodPost, "/api/v1/reviews",
@@ -88,6 +90,8 @@ func (app *application) routes() http.Handler {
 	// Admin employer routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/employers",
 		app.requirePermission("admin:full", app.createEmployerHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/employers/:id",
+		app.requirePermission("admin:full", app.showEmployerByIDHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/employers/:id",
 		app.requirePermission("admin:full", app.updateEmployerHandler))
 	router.HandlerFunc(http.MethodDelete, "/api/v1/admin/employers/:id",
@@ -96,16 +100,24 @@ func (app *application) routes() http.Handler {
 	// Admin opportunities routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/opportunities",
 		app.requirePermission("admin:full", app.createOpportunityHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/opportunities/:id",
+		app.requirePermission("admin:full", app.showOpportunityByIDHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/opportunities/:id",
 		app.requirePermission("admin:full", app.updateOpportunityHandler))
 	router.HandlerFunc(http.MethodDelete, "/api/v1/admin/opportunities/:id",
 		app.requirePermission("admin:full", app.deleteOpportunityHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/opportunities",
+		app.requirePermission("admin:full", app.listAdminOpportunitiesHandler))
 
 	// Admin assessments routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/assessments",
 		app.requirePermission("admin:full", app.createAssessmentHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/assessments/:id",
+		app.requirePermission("admin:full", app.showAdminAssessmentHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/admin/assessments/:id",
 		app.requirePermission("admin:full", app.updateAssessmentHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/assessments",
+		app.requirePermission("admin:full", app.listAdminAssessmentsHandler))
 
 	// Admin review routes
 	router.HandlerFunc(http.MethodGet, "/api/v1/admin/reviews",
@@ -121,5 +133,5 @@ func (app *application) routes() http.Handler {
 
 	// Wrap everything: global 100/min rate limit (with exemptions for endpoint-specific limiters)
 	// → authenticate middleware loads the user into context
-	return app.rateLimitAll()(app.authenticate(router))
+	return app.logRequests(app.enableCORS(app.rateLimitAll()(app.authenticate(router))))
 }

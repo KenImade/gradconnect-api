@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"api.gradconnect.com/internal/data"
@@ -145,4 +149,173 @@ func (app *application) rateLimitAll() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Add("Vary", "Origin")
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+
+		origin := r.Header.Get("Origin")
+
+		if origin != "" {
+			for i := range app.config.cors.trustedOrigins {
+				if origin == app.config.cors.trustedOrigins[i] {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true") // ← add
+
+					if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+						w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, GET, POST, PUT, PATCH, DELETE")
+						w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+						w.WriteHeader(http.StatusOK)
+						return
+					}
+
+					break
+				}
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+const requestIDContextKey contextKey = "request_id"
+
+// newRequestID returns a short hex-encoded random string for correlating
+// log entries to a single request lifecycle.
+func newRequestID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// requestIDFromContext returns the request ID for the current request, or empty.
+// Exported-style helper in case other code wants to include it in logs.
+func requestIDFromContext(ctx context.Context) string {
+	if id, ok := ctx.Value(requestIDContextKey).(string); ok {
+		return id
+	}
+	return ""
+}
+
+// responseWriter wraps http.ResponseWriter to capture status code and byte
+// count for access logging.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	// If a handler calls Write without WriteHeader, Go implicitly sends 200.
+	// We want to record that.
+	if rw.status == 0 {
+		rw.status = http.StatusOK
+	}
+	n, err := rw.ResponseWriter.Write(b)
+	rw.bytes += n
+	return n, err
+}
+
+// logRequests logs every incoming HTTP request with method, path, status,
+// duration, client IP, user agent, and (if authenticated) the user ID.
+// Healthcheck requests are skipped to keep logs clean.
+func (app *application) logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip the healthcheck — too noisy to be useful.
+		if r.URL.Path == "/api/v1/healthcheck" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		start := time.Now()
+		reqID := newRequestID()
+
+		// Stash the request ID in context so inner handlers can reference it
+		// in their own log lines (e.g. for errors).
+		ctx := context.WithValue(r.Context(), requestIDContextKey, reqID)
+		r = r.WithContext(ctx)
+
+		// Echo to client for support debugging ("include this header with your report").
+		w.Header().Set("X-Request-ID", reqID)
+
+		rw := &responseWriter{ResponseWriter: w}
+
+		next.ServeHTTP(rw, r)
+
+		duration := time.Since(start)
+
+		// If WriteHeader was never called and no body was written,
+		// default to 200 for accurate logging.
+		status := rw.status
+		if status == 0 {
+			status = http.StatusOK
+		}
+
+		attrs := []any{
+			"request_id", reqID,
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", status,
+			"duration_ms", duration.Milliseconds(),
+			"bytes", rw.bytes,
+			"remote_ip", clientIP(r),
+			"user_agent", r.UserAgent(),
+		}
+
+		// Only include query if present — cleaner logs for the typical no-query case.
+		if r.URL.RawQuery != "" {
+			attrs = append(attrs, "query", r.URL.RawQuery)
+		}
+
+		// If the auth middleware ran and resolved a user, include their ID.
+		// This is safe because contextGetUser always returns a valid User
+		// (AnonymousUser if unauthenticated) — no nil check needed.
+		user := app.contextGetUser(r)
+		if !user.IsAnonymous() {
+			attrs = append(attrs, "user_id", user.ID)
+		}
+
+		// Level by status: 5xx = error, 4xx = warn, 2xx/3xx = info.
+		switch {
+		case status >= 500:
+			app.logger.Error("request completed", attrs...)
+		case status >= 400:
+			app.logger.Warn("request completed", attrs...)
+		default:
+			app.logger.Info("request completed", attrs...)
+		}
+	})
+}
+
+// clientIP returns the best-effort original client IP, respecting proxy
+// headers from Railway, Fly.io, and similar PaaS platforms.
+func clientIP(r *http.Request) string {
+	// X-Forwarded-For is a comma-separated list; the first entry is the
+	// original client. The rest are the chain of proxies.
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		for i, c := range xff {
+			if c == ',' {
+				return strings.TrimSpace(xff[:i])
+			}
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+	// Fallback: RemoteAddr includes the port, strip it if possible.
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
 }
