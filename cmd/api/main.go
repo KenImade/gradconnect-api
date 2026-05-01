@@ -13,6 +13,7 @@ import (
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/ratelimit"
+	"api.gradconnect.com/internal/worker"
 	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -59,13 +60,16 @@ type config struct {
 }
 
 type application struct {
-	config  config
-	db      *pgxpool.Pool
-	limiter *ratelimit.MemoryLimiter
-	logger  *slog.Logger
-	mailer  *mailer.Mailer
-	models  data.Models
-	wg      sync.WaitGroup
+	config       config
+	db           *pgxpool.Pool
+	limiter      *ratelimit.MemoryLimiter
+	logger       *slog.Logger
+	mailer       *mailer.Mailer
+	models       data.Models
+	worker       *worker.Pool
+	workerCtx    context.Context
+	workerCancel context.CancelFunc
+	wg           sync.WaitGroup
 }
 
 // @title GradConnect API
@@ -178,7 +182,15 @@ func main() {
 		models:  data.NewModels(db),
 	}
 
-	go app.runTaskWorker()
+	// Cancellable context the worker pool runs under. cancel is invoked
+	// by the SIGTERM handler in serve() to stop the pool cleanly.
+	ctx, cancel := context.WithCancel(context.Background())
+	app.workerCtx = ctx
+	app.workerCancel = cancel
+
+	// Build and start the background worker pool.
+	app.worker = app.buildWorkerPool()
+	go app.worker.Run(ctx)
 
 	err = app.serve()
 	if err != nil {

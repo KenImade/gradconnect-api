@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -34,6 +35,21 @@ type BookmarkCreateResponse struct {
 	ID            string    `json:"id"`
 	OpportunityID string    `json:"opportunity_id"`
 	CreatedAt     time.Time `json:"created_at"`
+}
+
+type DeadlineReminderRecipient struct {
+	UserID    uuid.UUID
+	Email     string
+	FirstName string
+	Bookmarks []DeadlineReminderBookmark
+}
+
+type DeadlineReminderBookmark struct {
+	Title           string
+	EmployerName    string
+	OpportunitySlug string
+	Deadline        time.Time
+	DaysRemaining   int
 }
 
 func NewOpportunityStub(id, title, slug, oppType string, deadline time.Time, employer EmployerStub) OpportunityStub {
@@ -158,4 +174,82 @@ func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string
 
 	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
 	return bookmarks, metadata, nil
+}
+
+func (m BookmarkModel) FindDeadlineReminderRecipients(
+	ctx context.Context,
+	db DBTX,
+	daysAhead int,
+) ([]DeadlineReminderRecipient, error) {
+	lagos, err := time.LoadLocation("Africa/Lagos")
+	if err != nil {
+		return nil, fmt.Errorf("loading Africa/Lagos timezone: %w", err)
+	}
+	targetDate := time.Now().In(lagos).AddDate(0, 0, daysAhead).Format("2006-01-02")
+
+	query := `
+		SELECT
+			u.id,
+			u.email,
+			u.first_name,
+			o.title,
+			e.name AS employer_name,
+			o.slug,
+			o.deadline
+		FROM bookmark b
+		INNER JOIN opportunity o ON o.id = b.opportunity_id
+		INNER JOIN employer e ON e.id = o.employer_id
+		INNER JOIN app_user u ON u.id = b.user_id
+		WHERE
+			o.deadline = $1::date
+			AND o.is_active = true
+			AND u.email_verified = true
+		ORDER BY u.id, o.deadline ASC, o.title ASC
+	`
+
+	rows, err := db.Query(ctx, query, targetDate)
+	if err != nil {
+		return nil, fmt.Errorf("querying reminder recipients: %w", err)
+	}
+	defer rows.Close()
+
+	var recipients []DeadlineReminderRecipient
+	var current *DeadlineReminderRecipient
+
+	for rows.Next() {
+		var (
+			userID               uuid.UUID
+			email, firstName     string
+			title, empName, slug string
+			deadline             time.Time
+		)
+
+		if err := rows.Scan(&userID, &email, &firstName, &title, &empName, &slug, &deadline); err != nil {
+			return nil, fmt.Errorf("scanning reminder row: %w", err)
+		}
+
+		if current == nil || current.UserID != userID {
+			recipients = append(recipients, DeadlineReminderRecipient{
+				UserID:    userID,
+				Email:     email,
+				FirstName: firstName,
+				Bookmarks: nil,
+			})
+			current = &recipients[len(recipients)-1]
+		}
+
+		current.Bookmarks = append(current.Bookmarks, DeadlineReminderBookmark{
+			Title:           title,
+			EmployerName:    empName,
+			OpportunitySlug: slug,
+			Deadline:        deadline,
+			DaysRemaining:   daysAhead,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating reminder rows: %w", err)
+	}
+
+	return recipients, nil
 }

@@ -132,6 +132,10 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/v1/admin/import/:id",
 		app.requirePermission("admin:full", app.getImportJobHandler))
 
+	// Admin job triggers
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/jobs/deadline-reminders",
+		app.requirePermission("admin:full", app.triggerDeadlineRemindersHandler))
+
 	// Build the middleware chain. Inner-to-outer order:
 	//   router → authenticate → rateLimitAll → enableCORS → logRequests → Sentry
 	//

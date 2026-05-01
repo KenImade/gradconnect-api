@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/worker"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -141,6 +142,35 @@ func (app *application) getImportJobHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"data": job}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// triggerDeadlineRemindersHandler manually fires the deadline reminder
+// enqueue job. Useful for testing in staging, recovery from a missed
+// cron, or admin-initiated re-runs.
+//
+// Bypasses the time-of-day check but still respects the daily idempotency
+// guard via the cron_run table — call it twice on the same day and the
+// second call returns "already run today".
+func (app *application) triggerDeadlineRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	enqueued, err := app.worker.RunDeadlineRemindersNow(r.Context(), app.config.baseURL, app.config.frontendURL)
+	if err != nil {
+		if errors.Is(err, worker.ErrAlreadyRanToday) {
+			app.errorResponse(w, r, http.StatusConflict, "deadline reminders already ran today")
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{
+		"data": map[string]any{
+			"enqueued": enqueued,
+			"message":  "deadline reminders enqueued",
+		},
+	}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

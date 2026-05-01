@@ -42,10 +42,13 @@ func (app *application) serve() error {
 		err := srv.Shutdown(ctx)
 		if err != nil {
 			shutdownError <- err
+			return
 		}
 
-		app.logger.Info("completing background tasks", "addr", srv.Addr)
+		app.logger.Info("stopping background workers")
+		app.workerCancel()
 
+		app.logger.Info("completing background tasks", "addr", srv.Addr)
 		app.wg.Wait()
 
 		shutdownError <- nil

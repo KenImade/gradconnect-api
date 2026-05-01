@@ -2,133 +2,101 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"time"
 
-	"github.com/jackc/pgx/v5"
+	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/worker"
 )
 
-func (app *application) runTaskWorker() {
-	app.logger.Info("starting background task worker")
+// buildWorkerPool constructs the background job dispatcher and worker
+// pool for this application. Each dispatcher.Register binds a job_type
+// string (matching what's stored in task_queue rows) to a handler that
+// closes over `app` for access to mailer, models, importer, etc.
+//
+// The returned pool is not started — the caller is responsible for
+// running it (typically `go pool.Run(ctx)`) and for cancelling its
+// context on shutdown.
+func (app *application) buildWorkerPool() *worker.Pool {
+	dispatcher := worker.NewDispatcher()
 
-	for {
-		// Poll for a pending task
-		// We use FOR UPDATE SKIP LOCKED to handle concurrency safely
-		ctx := context.Background()
+	dispatcher.Register("email:verify", app.handleEmailVerify)
+	dispatcher.Register("email:welcome", app.handleEmailWelcome)
+	dispatcher.Register("email:password_reset", app.handleEmailPasswordReset)
+	dispatcher.Register("email:deadline_reminder", app.handleEmailDeadlineReminder)
+	dispatcher.Register("admin:import", app.handleAdminImport)
+	dispatcher.Register("employer:recalc_ratings", app.handleEmployerRecalcRatings)
 
-		var taskID string
-		var jobType string
-		var payload []byte
-
-		query := `
-            UPDATE task_queue
-            SET status = 'processing', locked_at = now()
-            WHERE id = (
-                SELECT id FROM task_queue
-                WHERE status = 'pending' AND run_at <= now()
-                ORDER BY run_at ASC
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-            )
-            RETURNING id, job_type, payload`
-
-		err := app.db.QueryRow(ctx, query).Scan(&taskID, &jobType, &payload)
-
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				// No tasks to process, sleep for a bit
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			app.logger.Error("worker poll error", "error", err)
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		// Process the task
-		err = app.processTask(jobType, payload)
-
-		if err != nil {
-			app.logger.Error("task failed", "id", taskID, "error", err)
-
-			// Increment attempts and check if it should become 'dead'
-			query := `
-				UPDATE task_queue 
-				SET 
-					status = CASE 
-						WHEN attempts + 1 >= max_attempts THEN 'dead'::task_status_type 
-						ELSE 'pending'::task_status_type 
-					END,
-					attempts = attempts + 1,
-					last_error = $1,
-					run_at = CASE 
-						WHEN attempts + 1 >= max_attempts THEN run_at -- don't reschedule
-						ELSE now() + (pow(2, attempts + 1) * interval '1 minute') -- exponential backoff
-					END
-				WHERE id = $2`
-
-			app.db.Exec(ctx, query, err.Error(), taskID)
-		} else {
-			// Task succeeded
-			app.db.Exec(ctx, "UPDATE task_queue SET status = 'completed', completed_at = now() WHERE id = $1", taskID)
-		}
-	}
+	return worker.New(app.db, app.logger, dispatcher)
 }
 
-func (app *application) processTask(jobType string, payload []byte) error {
-	switch jobType {
-	case "admin:import":
-		var data struct {
-			ImportJobID string `json:"import_job_id"`
-		}
-		if err := json.Unmarshal(payload, &data); err != nil {
-			return err
-		}
-		return app.processImport(data.ImportJobID)
-	case "email:verify":
-		var data struct {
-			BaseURL         string `json:"base_url"`
-			Email           string `json:"user_email"`
-			FirstName       string `json:"first_name"`
-			ActivationToken string `json:"activation_token"`
-		}
-		if err := json.Unmarshal(payload, &data); err != nil {
-			return err
-		}
-		return app.mailer.Send(data.Email, "email_verify.tmpl", data)
+// --- Job handlers ---
 
-	case "email:welcome":
-		var data struct {
-			Email     string `json:"user_email"`
-			FirstName string `json:"first_name"`
-		}
-		if err := json.Unmarshal(payload, &data); err != nil {
-			return err
-		}
-		return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
-
-	case "email:password_reset":
-		var data struct {
-			FrontendURL string `json:"frontend_url"`
-			Email       string `json:"user_email"`
-			FirstName   string `json:"first_name"`
-			ResetToken  string `json:"reset_token"`
-		}
-		if err := json.Unmarshal(payload, &data); err != nil {
-			return err
-		}
-		return app.mailer.Send(data.Email, "password_reset.tmpl", data)
-	case "employer:recalc_ratings":
-		var data struct {
-			EmployerID string `json:"employer_id"`
-		}
-		if err := json.Unmarshal(payload, &data); err != nil {
-			return err
-		}
-		return app.models.Employers.RecalculateRatings(context.Background(), app.db, data.EmployerID)
-	default:
-		return fmt.Errorf("unknown job type: %s", jobType)
+func (app *application) handleEmailVerify(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		BaseURL         string `json:"base_url"`
+		Email           string `json:"user_email"`
+		FirstName       string `json:"first_name"`
+		ActivationToken string `json:"activation_token"`
+	}](payload)
+	if err != nil {
+		return err
 	}
+	return app.mailer.Send(data.Email, "email_verify.tmpl", data)
+}
+
+func (app *application) handleEmailWelcome(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		Email     string `json:"user_email"`
+		FirstName string `json:"first_name"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
+}
+
+func (app *application) handleEmailPasswordReset(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		FrontendURL string `json:"frontend_url"`
+		Email       string `json:"user_email"`
+		FirstName   string `json:"first_name"`
+		ResetToken  string `json:"reset_token"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.mailer.Send(data.Email, "password_reset.tmpl", data)
+}
+
+func (app *application) handleAdminImport(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		ImportJobID string `json:"import_job_id"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.processImport(data.ImportJobID)
+}
+
+func (app *application) handleEmployerRecalcRatings(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		EmployerID string `json:"employer_id"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.models.Employers.RecalculateRatings(ctx, app.db, data.EmployerID)
+}
+
+func (app *application) handleEmailDeadlineReminder(ctx context.Context, _ string, payload []byte) error {
+	data, err := worker.UnmarshalPayload[struct {
+		Recipient   string                          `json:"recipient"`
+		FirstName   string                          `json:"first_name"`
+		BaseURL     string                          `json:"base_url"`
+		FrontendURL string                          `json:"frontend_url"`
+		Bookmarks   []data.DeadlineReminderBookmark `json:"bookmarks"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.mailer.Send(data.Recipient, "deadline_reminder.tmpl", data)
 }

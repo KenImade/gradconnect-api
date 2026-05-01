@@ -13,10 +13,13 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api -port=4000 -db-dsn=${GRADCONNECT_DB_DSN} \
+	go run ./cmd/api \
+  -port=4000 \
+  -db-dsn="postgres://gradconnect:gradconnect_dev_pw@localhost:5432/gradconnect?sslmode=disable" \
   -cors-trusted-origins=http://localhost:3000 \
   -frontend-url=http://localhost:3000 \
-  -base-url=http://localhost:4000
+  -base-url=http://localhost:4000 \
+  -smtp-sender='GradConnect <no-reply@gradconnect.ng>'
 
 ## build/api: build the cmd/api application
 .PHONY: build/api
