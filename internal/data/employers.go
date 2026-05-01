@@ -458,3 +458,83 @@ func (m EmployerModel) RecalculateRatings(ctx context.Context, db DBTX, employer
 
 	return nil
 }
+
+// Upsert inserts a new employer or updates an existing one matched by slug.
+//
+// Used by the bulk CSV import path where re-uploading a corrected CSV
+// should refresh editable fields without losing manually-managed state
+// (verification flag, computed review aggregates, optimistic lock version).
+//
+// Protected fields not touched by upsert:
+//   - is_verified         (admin-toggled, manual workflow)
+//   - avg_difficulty_rating, avg_experience_rating, review_count
+//     (computed by recalc_ratings worker)
+//   - version             (managed by the optimistic-lock pattern;
+//     bumped here only on actual conflict update)
+//
+// Slug collisions are the merge key — there is no way to call this with
+// the intent "create even if slug exists." Use Insert for that.
+func (m EmployerModel) Upsert(ctx context.Context, db DBTX, input CreateEmployerInput) (*Employer, error) {
+	query := `
+        INSERT INTO employer
+            (name, slug, industry, size, hq_location, offices,
+             logo_url, overview, culture, website, social_links)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (slug) DO UPDATE SET
+            name         = EXCLUDED.name,
+            industry     = EXCLUDED.industry,
+            size         = EXCLUDED.size,
+            hq_location  = EXCLUDED.hq_location,
+            offices      = EXCLUDED.offices,
+            logo_url     = EXCLUDED.logo_url,
+            overview     = EXCLUDED.overview,
+            culture      = EXCLUDED.culture,
+            website      = EXCLUDED.website,
+            social_links = EXCLUDED.social_links,
+            version      = employer.version + 1,
+            updated_at   = now()
+        RETURNING id, name, slug, industry, size, hq_location, offices,
+                  logo_url, overview, culture, website, social_links,
+                  is_verified, avg_difficulty_rating, avg_experience_rating, review_count,
+                  version, created_at, updated_at`
+
+	employer := &Employer{}
+	err := db.QueryRow(ctx, query,
+		input.Name,
+		input.Slug,
+		input.Industry,
+		input.Size,
+		input.HQLocation,
+		input.Offices,
+		input.LogoURL,
+		input.Overview,
+		input.Culture,
+		input.Website,
+		input.SocialLinks,
+	).Scan(
+		&employer.ID,
+		&employer.Name,
+		&employer.Slug,
+		&employer.Industry,
+		&employer.Size,
+		&employer.HQLocation,
+		&employer.Offices,
+		&employer.LogoURL,
+		&employer.Overview,
+		&employer.Culture,
+		&employer.Website,
+		&employer.SocialLinks,
+		&employer.IsVerified,
+		&employer.AvgDifficultyRating,
+		&employer.AvgExperienceRating,
+		&employer.ReviewCount,
+		&employer.Version,
+		&employer.CreatedAt,
+		&employer.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return employer, nil
+}

@@ -498,3 +498,76 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 
 	return opportunities, metadata, nil
 }
+
+// Upsert inserts a new opportunity or updates an existing one matched by
+// (employer_id, title, intake_year). That triple is the natural dedup key
+// for graduate programmes — same employer, same role title, same recruitment
+// cycle. Re-uploading a corrected CSV refreshes editable fields without
+// creating phantom duplicates.
+//
+// Protected fields not touched by upsert:
+//   - search_vector  (maintained by trigger; never written directly)
+//
+// Note: opportunity has no `version` column, no review aggregates, and no
+// admin-toggled flags (is_active is editable via upsert; this is the
+// intended behaviour — re-uploading a CSV with is_active=false should
+// withdraw the listing).
+func (m OpportunityModel) Upsert(ctx context.Context, db DBTX, input CreateOpportunityInput) (*Opportunity, error) {
+	query := `
+        INSERT INTO opportunity
+            (employer_id, title, slug, type, intake_year, description, requirements,
+             location, discipline_tags, opens_at, deadline, application_url, source_url,
+             is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ON CONFLICT (employer_id, title, intake_year) DO UPDATE SET
+            slug            = EXCLUDED.slug,
+            type            = EXCLUDED.type,
+            description     = EXCLUDED.description,
+            requirements    = EXCLUDED.requirements,
+            location        = EXCLUDED.location,
+            discipline_tags = EXCLUDED.discipline_tags,
+            opens_at        = EXCLUDED.opens_at,
+            deadline        = EXCLUDED.deadline,
+            application_url = EXCLUDED.application_url,
+            source_url      = EXCLUDED.source_url,
+            is_active       = EXCLUDED.is_active,
+            updated_at      = now()
+        RETURNING id`
+
+	var id string
+	err := db.QueryRow(ctx, query,
+		input.EmployerID,
+		input.Title,
+		input.Slug,
+		input.Type,
+		input.IntakeYear,
+		input.Description,
+		input.Requirements,
+		input.Location,
+		input.DisciplineTags,
+		input.OpensAt,
+		input.Deadline,
+		input.ApplicationURL,
+		input.SourceURL,
+		input.IsActive,
+	).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23505":
+				// Slug collision (different employer/title/year combo wants
+				// the same slug). Conflict target above only handles the
+				// (employer_id, title, intake_year) constraint.
+				return nil, ErrDuplicateOpportunitySlug
+			case "23503":
+				return nil, ErrRecordNotFound // employer doesn't exist
+			}
+		}
+		return nil, err
+	}
+
+	// Re-fetch with joins to return the full enriched shape (status,
+	// days_remaining, employer stub).
+	return m.GetByID(ctx, db, id)
+}

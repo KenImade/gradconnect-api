@@ -13,6 +13,7 @@ import (
 	"api.gradconnect.com/internal/data"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/ratelimit"
+	"api.gradconnect.com/internal/storage"
 	"api.gradconnect.com/internal/worker"
 	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,6 +58,15 @@ type config struct {
 		env              string
 		tracesSampleRate float64
 	}
+
+	r2 struct {
+		accountID       string
+		accessKeyID     string
+		secretAccessKey string
+		bucket          string
+		publicURL       string
+		endpoint        string
+	}
 }
 
 type application struct {
@@ -66,6 +76,7 @@ type application struct {
 	logger       *slog.Logger
 	mailer       *mailer.Mailer
 	models       data.Models
+	storage      storage.Storage
 	worker       *worker.Pool
 	workerCtx    context.Context
 	workerCancel context.CancelFunc
@@ -115,6 +126,13 @@ func main() {
 	flag.StringVar(&cfg.sentry.dsn, "sentry-dsn", os.Getenv("GRADCONNECT_SENTRY_DSN"), "Sentry DSN")
 	flag.StringVar(&cfg.sentry.env, "sentry-env", os.Getenv("GRADCONNECT_SENTRY_ENV"), "Sentry environment tag")
 	flag.Float64Var(&cfg.sentry.tracesSampleRate, "sentry-traces-rate", 0.1, "Sentry traces sample rate")
+
+	flag.StringVar(&cfg.r2.accountID, "r2-account-id", os.Getenv("GRADCONNECT_R2_ACCOUNT_ID"), "Cloudflare R2 account ID")
+	flag.StringVar(&cfg.r2.accessKeyID, "r2-access-key-id", os.Getenv("GRADCONNECT_R2_ACCESS_KEY_ID"), "Cloudflare R2 access key ID")
+	flag.StringVar(&cfg.r2.secretAccessKey, "r2-secret-access-key", os.Getenv("GRADCONNECT_R2_SECRET_ACCESS_KEY"), "Cloudflare R2 secret access key")
+	flag.StringVar(&cfg.r2.bucket, "r2-bucket", os.Getenv("GRADCONNECT_R2_BUCKET"), "Cloudflare R2 bucket name")
+	flag.StringVar(&cfg.r2.publicURL, "r2-public-url", os.Getenv("GRADCONNECT_R2_PUBLIC_URL"), "Cloudflare R2 public bucket URL")
+	flag.StringVar(&cfg.r2.endpoint, "r2-endpoint", os.Getenv("GRADCONNECT_R2_ENDPOINT"), "Cloudflare R2 S3 endpoint")
 
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
@@ -172,6 +190,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	storageClient, err := storage.NewR2Storage(context.Background(), storage.R2Config{
+		AccountID:       cfg.r2.accountID,
+		AccessKeyID:     cfg.r2.accessKeyID,
+		SecretAccessKey: cfg.r2.secretAccessKey,
+		Bucket:          cfg.r2.bucket,
+		PublicURL:       cfg.r2.publicURL,
+		Endpoint:        cfg.r2.endpoint,
+	})
+	if err != nil {
+		logger.Error("storage init failed", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("storage initialised", "bucket", cfg.r2.bucket)
+
 	// initialise application
 	app := &application{
 		config:  cfg,
@@ -180,6 +212,7 @@ func main() {
 		logger:  logger,
 		mailer:  mailer,
 		models:  data.NewModels(db),
+		storage: storageClient,
 	}
 
 	// Cancellable context the worker pool runs under. cancel is invoked

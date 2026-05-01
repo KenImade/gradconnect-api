@@ -3,9 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"api.gradconnect.com/internal/data"
@@ -37,11 +35,11 @@ func (app *application) startImportHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Limit upload size to 10MB
-	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
+	// Limit upload size to 5MB
+	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
 
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		app.errorResponse(w, r, http.StatusRequestEntityTooLarge, "file too large (max 10MB)")
+	if err := r.ParseMultipartForm(5 << 20); err != nil {
+		app.errorResponse(w, r, http.StatusRequestEntityTooLarge, "file too large (max 5MB)")
 		return
 	}
 
@@ -58,22 +56,11 @@ func (app *application) startImportHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Save to disk with a unique name
-	if err := os.MkdirAll(app.config.import_.storageDir, 0755); err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
+	// Upload to R2 with a unique key. The key is what gets stored in
+	// import_job.file_path; processImport reads it back via app.storage.Download.
+	storageKey := fmt.Sprintf("imports/%s-%s.csv", importType, uuid.NewString())
 
-	filename := fmt.Sprintf("%s-%s.csv", importType, uuid.NewString())
-	fullPath := filepath.Join(app.config.import_.storageDir, filename)
-
-	dst, err := os.Create(fullPath)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
+	if _, err := app.storage.Upload(r.Context(), storageKey, "text/csv", file); err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -84,7 +71,7 @@ func (app *application) startImportHandler(w http.ResponseWriter, r *http.Reques
 
 	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
 		var err error
-		job, err = app.models.ImportJob.Insert(r.Context(), tx, user.ID, importType, fullPath)
+		job, err = app.models.ImportJob.Insert(r.Context(), tx, user.ID, importType, storageKey)
 		if err != nil {
 			return err
 		}
@@ -96,8 +83,8 @@ func (app *application) startImportHandler(w http.ResponseWriter, r *http.Reques
 	})
 
 	if err != nil {
-		// Clean up the file if the transaction failed
-		os.Remove(fullPath)
+		// Clean up the file from storage if the transaction failed
+		_ = app.storage.Delete(r.Context(), storageKey)
 		app.serverErrorResponse(w, r, err)
 		return
 	}
