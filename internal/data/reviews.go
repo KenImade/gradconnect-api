@@ -473,7 +473,7 @@ func (m ReviewModel) GetAllByEmployerSlug(ctx context.Context, db DBTX, slug str
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return reviews, metadata, nil
 }
@@ -536,7 +536,7 @@ func (m ReviewModel) GetAllForModeration(ctx context.Context, db DBTX, status st
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return reviews, metadata, nil
 }

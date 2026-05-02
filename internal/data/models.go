@@ -21,6 +21,7 @@ type DBTX interface {
 }
 
 type Models struct {
+	Analytics          AnalyticsModel
 	ApplicationTracker ApplicationTrackerModel
 	Assessments        AssessmentModel
 	Bookmarks          BookmarkModel
@@ -37,6 +38,7 @@ type Models struct {
 
 func NewModels(db *pgxpool.Pool) Models {
 	return Models{
+		Analytics:          AnalyticsModel{DB: db},
 		ApplicationTracker: ApplicationTrackerModel{DB: db},
 		Assessments:        AssessmentModel{DB: db},
 		Bookmarks:          BookmarkModel{DB: db},

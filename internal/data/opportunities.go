@@ -497,7 +497,7 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, input.Filters.Page, input.Filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, input.Filters.Page, input.Filters.PageSize)
 
 	return opportunities, metadata, nil
 }

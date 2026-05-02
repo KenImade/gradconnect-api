@@ -44,6 +44,11 @@ type DeadlineReminderRecipient struct {
 	Bookmarks []DeadlineReminderBookmark
 }
 
+type DeadlineReminderResponse struct {
+	Enqueued int    `json:"enqueued"`
+	Message  string `json:"message"`
+}
+
 type DeadlineReminderBookmark struct {
 	Title           string
 	EmployerName    string
@@ -172,7 +177,7 @@ func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 	return bookmarks, metadata, nil
 }
 
