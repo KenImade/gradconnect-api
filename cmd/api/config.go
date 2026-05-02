@@ -82,6 +82,19 @@ func parseConfig() config {
 			defaultPort = p
 		}
 	}
+
+	defaultSMTPHost := "localhost"
+	if v := os.Getenv("GRADCONNECT_SMTP_HOST"); v != "" {
+		defaultSMTPHost = v
+	}
+
+	defaultSMTPPort := 1025
+	if v := os.Getenv("GRADCONNECT_SMTP_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			defaultSMTPPort = p
+		}
+	}
+
 	flag.IntVar(&cfg.port, "port", defaultPort, "API server port")
 
 	flag.StringVar(&cfg.env, "env", os.Getenv("GRADCONNECT_ENV"), "Environment (development|staging|production)")
@@ -92,8 +105,8 @@ func parseConfig() config {
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "localhost", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 1025, "SMTP port")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", defaultSMTPHost, "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", defaultSMTPPort, "SMTP port")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GRADCONNECT_SMTP_USERNAME"), "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("GRADCONNECT_SMTP_PASSWORD"), "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("GRADCONNECT_SMTP_SENDER"), "SMTP sender")

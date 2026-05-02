@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"api.gradconnect.com/cmd/api/docs"
-	_ "api.gradconnect.com/cmd/api/docs" // swagger docs
 	"api.gradconnect.com/internal/app"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/storage"
@@ -41,6 +40,7 @@ func main() {
 		logger.Error("sentry init failed", "err", err)
 		os.Exit(1)
 	}
+	defer sentry.Flush(2 * time.Second)
 
 	db, err := openDB(cfg, logger)
 	if err != nil {
@@ -99,8 +99,6 @@ func initSentry(cfg config, logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-
-	defer sentry.Flush(2 * time.Second)
 	logger.Info("sentry enabled", "env", cfg.sentry.env)
 	return nil
 }
