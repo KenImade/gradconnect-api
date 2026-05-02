@@ -23,9 +23,11 @@ func (app *App) routes() http.Handler {
 	// Swagger and Redoc Documentation
 	router.HandlerFunc(http.MethodGet, "/", app.redocHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/docs/redoc", app.redocHandler)
-	if app.config.Env != "production" {
-		router.Handler(http.MethodGet, "/api/v1/docs/swagger/*any", httpSwagger.WrapHandler)
-	}
+	router.Handler(http.MethodGet, "/api/v1/docs/swagger/*any",
+		httpSwagger.Handler(
+			httpSwagger.URL("/api/v1/docs/swagger/doc.json"),
+		),
+	)
 
 	// health check route
 	router.HandlerFunc(http.MethodGet, "/api/v1/healthcheck", app.healthcheckHandler)
