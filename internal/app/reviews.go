@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /reviews [post]
-func (app *application) addReviewHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) addReviewHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.CreateReviewInput
 
 	err := app.readJSON(w, r, &input)
@@ -85,7 +85,7 @@ func (app *application) addReviewHandler(w http.ResponseWriter, r *http.Request)
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /reviews/{id} [patch]
-func (app *application) updateReviewHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateReviewHandler(w http.ResponseWriter, r *http.Request) {
 	reviewID, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -139,7 +139,7 @@ func (app *application) updateReviewHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      422  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /employers/{slug}/reviews [get]
-func (app *application) listReviewsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	slug, err := app.readSlugParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -189,7 +189,7 @@ func (app *application) listReviewsHandler(w http.ResponseWriter, r *http.Reques
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/reviews/{id} [patch]
-func (app *application) moderateReviewHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) moderateReviewHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -254,7 +254,7 @@ func (app *application) moderateReviewHandler(w http.ResponseWriter, r *http.Req
 // @Failure      422  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/reviews [get]
-func (app *application) listReviewsForModerationHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listReviewsForModerationHandler(w http.ResponseWriter, r *http.Request) {
 	var filters data.Filters
 
 	v := validator.New()

@@ -1,8 +1,8 @@
-package main
+package app
 
 import "net/http"
 
-func (app *application) redocHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) redocHandler(w http.ResponseWriter, r *http.Request) {
 	html := `<!DOCTYPE html>
        <html>
        <head>

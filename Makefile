@@ -66,7 +66,7 @@ db/seed/reviews:
 .PHONY: docs/generate
 docs/generate:
 	@echo 'Generating API documentation...'
-	swag init -g cmd/api/main.go -o cmd/api/docs --parseDependency --parseInternal
+	swag init -g cmd/api/main.go -d cmd/api,internal/app -o cmd/api/docs --parseDependency --parseInternal
 
 ## audit: tidy dependencies, vet, staticcheck, and test
 .PHONY: audit

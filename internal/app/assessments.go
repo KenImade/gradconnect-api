@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/assessments [post]
-func (app *application) createAssessmentHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) createAssessmentHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.CreateAssessmentInput
 
 	err := app.readJSON(w, r, &input)
@@ -73,7 +73,7 @@ func (app *application) createAssessmentHandler(w http.ResponseWriter, r *http.R
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/assessments/{id} [patch]
-func (app *application) updateAssessmentHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateAssessmentHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -126,7 +126,7 @@ func (app *application) updateAssessmentHandler(w http.ResponseWriter, r *http.R
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /employers/{slug}/assessments [get]
-func (app *application) listAssessmentsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listAssessmentsHandler(w http.ResponseWriter, r *http.Request) {
 	slug, err := app.readSlugParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -173,7 +173,7 @@ func (app *application) listAssessmentsHandler(w http.ResponseWriter, r *http.Re
 // @Failure      404  {object}  envelope{error=string}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /admin/assessments/{id} [get]
-func (app *application) showAdminAssessmentHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) showAdminAssessmentHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -213,7 +213,7 @@ func (app *application) showAdminAssessmentHandler(w http.ResponseWriter, r *htt
 // @Failure      422  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /admin/assessments [get]
-func (app *application) listAdminAssessmentsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listAdminAssessmentsHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.AssessmentFilters
 
 	v := validator.New()

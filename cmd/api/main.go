@@ -4,35 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"sync"
 	"time"
 
 	_ "api.gradconnect.com/cmd/api/docs" // swagger docs
-	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/app"
 	"api.gradconnect.com/internal/mailer"
-	"api.gradconnect.com/internal/ratelimit"
 	"api.gradconnect.com/internal/storage"
-	"api.gradconnect.com/internal/worker"
 	"github.com/getsentry/sentry-go"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// application version
-const version = "1.0.0"
-
-type application struct {
-	config       config
-	db           *pgxpool.Pool
-	limiter      *ratelimit.MemoryLimiter
-	logger       *slog.Logger
-	mailer       *mailer.Mailer
-	models       data.Models
-	storage      storage.Storage
-	worker       *worker.Pool
-	workerCtx    context.Context
-	workerCancel context.CancelFunc
-	wg           sync.WaitGroup
-}
 
 // @title GradConnect API
 // @version 1.0
@@ -83,24 +62,9 @@ func main() {
 	}
 	logger.Info("storage initialised", "bucket", cfg.r2.bucket)
 
-	app := &application{
-		config:  cfg,
-		db:      db,
-		limiter: ratelimit.NewMemoryLimiter(),
-		logger:  logger,
-		mailer:  m,
-		models:  data.NewModels(db),
-		storage: storageClient,
-	}
+	a := app.New(cfg.toAppConfig(), db, logger, m, storageClient)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	app.workerCtx = ctx
-	app.workerCancel = cancel
-
-	app.worker = app.buildWorkerPool()
-	go app.worker.Run(ctx)
-
-	if err = app.serve(); err != nil {
+	if err = a.Serve(); err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
@@ -115,7 +79,7 @@ func initSentry(cfg config, logger *slog.Logger) error {
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.sentry.dsn,
 		Environment:      cfg.sentry.env,
-		Release:          version,
+		Release:          app.Version,
 		EnableTracing:    true,
 		TracesSampleRate: cfg.sentry.tracesSampleRate,
 		BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {

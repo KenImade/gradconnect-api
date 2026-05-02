@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/employers [post]
-func (app *application) createEmployerHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) createEmployerHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.CreateEmployerInput
 
 	err := app.readJSON(w, r, &input)
@@ -71,7 +71,7 @@ func (app *application) createEmployerHandler(w http.ResponseWriter, r *http.Req
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /employers/{slug} [get]
-func (app *application) showEmployerBySlugHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) showEmployerBySlugHandler(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	slug := params.ByName("slug")
 
@@ -102,7 +102,7 @@ func (app *application) showEmployerBySlugHandler(w http.ResponseWriter, r *http
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /admin/employers/{id} [get]
-func (app *application) showEmployerByIDHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) showEmployerByIDHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -143,7 +143,7 @@ func (app *application) showEmployerByIDHandler(w http.ResponseWriter, r *http.R
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/employers/{id} [patch]
-func (app *application) updateEmployerHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateEmployerHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -199,7 +199,7 @@ func (app *application) updateEmployerHandler(w http.ResponseWriter, r *http.Req
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/employers/{id} [delete]
-func (app *application) deleteEmployerHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) deleteEmployerHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -236,7 +236,7 @@ func (app *application) deleteEmployerHandler(w http.ResponseWriter, r *http.Req
 // @Failure      422  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /employers [get]
-func (app *application) listEmployersHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listEmployersHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Search     string
 		Industry   string

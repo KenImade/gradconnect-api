@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 
 type envelope map[string]any
 
-func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+func (app *App) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func (app *App) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	// Limit the size of the request body to 1,048,576 bytes (1MB)
 	r.Body = http.MaxBytesReader(w, r.Body, 1_048_576)
 
@@ -84,7 +84,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	return nil
 }
 
-func (app *application) readString(qs url.Values, key string, defaultValue string) string {
+func (app *App) readString(qs url.Values, key string, defaultValue string) string {
 	s := qs.Get(key)
 
 	if s == "" {
@@ -94,7 +94,7 @@ func (app *application) readString(qs url.Values, key string, defaultValue strin
 	return s
 }
 
-func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+func (app *App) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
 	s := qs.Get(key)
 
 	if s == "" {
@@ -110,7 +110,7 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 	return i
 }
 
-func (app *application) readBool(qs url.Values, key string, defaultValue *bool) *bool {
+func (app *App) readBool(qs url.Values, key string, defaultValue *bool) *bool {
 	s := qs.Get(key)
 	if s == "" {
 		return defaultValue
@@ -124,7 +124,7 @@ func (app *application) readBool(qs url.Values, key string, defaultValue *bool) 
 	return &b
 }
 
-func (app *application) readDate(qs url.Values, key string, defaultValue time.Time, v *validator.Validator) time.Time {
+func (app *App) readDate(qs url.Values, key string, defaultValue time.Time, v *validator.Validator) time.Time {
 	s := qs.Get(key)
 	if s == "" {
 		return defaultValue
@@ -139,7 +139,7 @@ func (app *application) readDate(qs url.Values, key string, defaultValue time.Ti
 	return t
 }
 
-func (app *application) readSlugParam(r *http.Request) (string, error) {
+func (app *App) readSlugParam(r *http.Request) (string, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 
 	slug := params.ByName("slug")
@@ -150,7 +150,7 @@ func (app *application) readSlugParam(r *http.Request) (string, error) {
 	return slug, nil
 }
 
-func (app *application) readIDParam(r *http.Request) (string, error) {
+func (app *App) readIDParam(r *http.Request) (string, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 
 	id := params.ByName("id")
@@ -162,7 +162,7 @@ func (app *application) readIDParam(r *http.Request) (string, error) {
 }
 
 // inTransaction is a helper that starts a transaction and handles rollback/commit.
-func (app *application) inTransaction(ctx context.Context, fn func(pgx.Tx) error) error {
+func (app *App) inTransaction(ctx context.Context, fn func(pgx.Tx) error) error {
 	tx, err := app.db.Begin(ctx)
 	if err != nil {
 		return err
@@ -176,23 +176,3 @@ func (app *application) inTransaction(ctx context.Context, fn func(pgx.Tx) error
 
 	return tx.Commit(ctx)
 }
-
-// func (app *application) background(name string, fn func()) {
-// 	app.wg.Add(1)
-
-// 	go func() {
-// 		defer app.wg.Done()
-
-// 		defer func() {
-// 			if err := recover(); err != nil {
-// 				app.logger.Error("background task panicked",
-// 					"task", name,
-// 					"error", fmt.Sprintf("%v", err),
-// 					"stack", string(debug.Stack()),
-// 				)
-// 			}
-// 		}()
-
-// 		fn()
-// 	}()
-// }

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ import (
 // @Failure      422        {object}  ErrorResponse
 // @Failure      500        {object}  ErrorResponse
 // @Router       /me/bookmarks [get]
-func (app *application) listBookmarksHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listBookmarksHandler(w http.ResponseWriter, r *http.Request) {
 	var filters data.Filters
 
 	v := validator.New()
@@ -74,7 +74,7 @@ type addBookmarkInput struct {
 // @Failure      409   {object}  ErrorResponse  "Already bookmarked"
 // @Failure      500   {object}  ErrorResponse
 // @Router       /me/bookmarks [post]
-func (app *application) addBookmarkHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) addBookmarkHandler(w http.ResponseWriter, r *http.Request) {
 	var input addBookmarkInput
 
 	err := app.readJSON(w, r, &input)
@@ -129,7 +129,7 @@ func (app *application) addBookmarkHandler(w http.ResponseWriter, r *http.Reques
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /me/bookmarks/{id} [delete]
-func (app *application) removeBookmarkHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) removeBookmarkHandler(w http.ResponseWriter, r *http.Request) {
 	bookmarkID, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)

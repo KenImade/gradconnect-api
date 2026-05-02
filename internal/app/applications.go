@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /me/applications [post]
-func (app *application) addApplicationHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) addApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.CreateApplicationInput
 
 	err := app.readJSON(w, r, &input)
@@ -77,7 +77,7 @@ func (app *application) addApplicationHandler(w http.ResponseWriter, r *http.Req
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /me/applications/{id} [patch]
-func (app *application) updateApplicationHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	trackerID, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -130,7 +130,7 @@ func (app *application) updateApplicationHandler(w http.ResponseWriter, r *http.
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /me/applications/{id} [delete]
-func (app *application) removeApplicationHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) removeApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	trackerID, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -169,7 +169,7 @@ func (app *application) removeApplicationHandler(w http.ResponseWriter, r *http.
 // @Failure      422        {object}  ErrorResponse
 // @Failure      500        {object}  ErrorResponse
 // @Router       /me/applications [get]
-func (app *application) listApplicationsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 	var filters data.Filters
 
 	v := validator.New()

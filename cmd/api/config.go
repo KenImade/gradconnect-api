@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"api.gradconnect.com/internal/app"
 )
 
 type config struct {
@@ -97,4 +99,18 @@ func parseConfig() config {
 	}
 
 	return cfg
+}
+
+// toAppConfig converts the CLI config into the subset needed by internal/app.
+func (c config) toAppConfig() app.Config {
+	var ac app.Config
+	ac.Port = c.port
+	ac.Env = c.env
+	ac.FrontendURL = c.frontendURL
+	ac.BaseURL = c.baseURL
+	ac.CORS.TrustedOrigins = c.cors.trustedOrigins
+	ac.Google.ClientID = c.google.clientID
+	ac.Google.ClientSecret = c.google.clientSecret
+	ac.Google.RedirectURL = c.google.redirectURL
+	return ac
 }

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router      /auth/register [post]
-func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	var input data.CreateUserInput
 
@@ -80,7 +80,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 
 		taskPayload := map[string]any{
-			"base_url":         app.config.baseURL,
+			"base_url":         app.config.BaseURL,
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
@@ -136,7 +136,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      422          {object}  ErrorResponse
 // @Failure      500          {object}  ErrorResponse
 // @Router       /auth/login [post]
-func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.LoginUserInput
 
 	err := app.readJSON(w, r, &input)
@@ -219,13 +219,13 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 // @Failure      422    {object}  ErrorResponse  "Missing or malformed token"
 // @Failure      500    {object}  ErrorResponse
 // @Router       /auth/verify-email [get]
-func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) activateUserHandler(w http.ResponseWriter, r *http.Request) {
 	tokenPlaintext := r.URL.Query().Get("token")
 
 	v := validator.New()
 	data.ValidateTokenPlaintext(v, tokenPlaintext)
 	if !v.Valid() {
-		http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=invalid", http.StatusFound)
+		http.Redirect(w, r, app.config.FrontendURL+"/verify-email?result=invalid", http.StatusFound)
 		return
 	}
 
@@ -266,19 +266,19 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=invalid", http.StatusFound)
+			http.Redirect(w, r, app.config.FrontendURL+"/verify-email?result=invalid", http.StatusFound)
 		// If you have specific expired / already-verified error sentinels, branch here:
 		// case errors.Is(err, data.ErrTokenExpired):
-		//     http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=expired", http.StatusFound)
+		//     http.Redirect(w, r, app.config.FrontendURL+"/verify-email?result=expired", http.StatusFound)
 		default:
 			// On unexpected errors, still redirect rather than leak JSON
 			app.logger.Error("activate user failed", "err", err)
-			http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=error", http.StatusFound)
+			http.Redirect(w, r, app.config.FrontendURL+"/verify-email?result=error", http.StatusFound)
 		}
 		return
 	}
 
-	http.Redirect(w, r, app.config.frontendURL+"/verify-email?result=success", http.StatusFound)
+	http.Redirect(w, r, app.config.FrontendURL+"/verify-email?result=success", http.StatusFound)
 }
 
 // resendVerificationEmailHandler godoc
@@ -292,7 +292,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      409  {object}  ErrorResponse  "Email already verified"
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/resend-verification [post]
-func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) resendVerificationEmailHandler(w http.ResponseWriter, r *http.Request) {
 	user := app.contextGetUser(r)
 
 	limitKey := "resend-verification:" + user.ID
@@ -314,7 +314,7 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 		}
 
 		taskPayload := map[string]any{
-			"base_url":         app.config.baseURL,
+			"base_url":         app.config.BaseURL,
 			"user_email":       user.Email,
 			"first_name":       user.FirstName,
 			"activation_token": token.Plaintext,
@@ -346,7 +346,7 @@ func (app *application) resendVerificationEmailHandler(w http.ResponseWriter, r 
 // @Failure      401   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/google [post]
-func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.GoogleAuthInput
 
 	err := app.readJSON(w, r, &input)
@@ -361,9 +361,9 @@ func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	oauthConfig := oauth2.Config{
-		ClientID:     app.config.google.clientID,
-		ClientSecret: app.config.google.clientSecret,
-		RedirectURL:  app.config.google.redirectURL,
+		ClientID:     app.config.Google.ClientID,
+		ClientSecret: app.config.Google.ClientSecret,
+		RedirectURL:  app.config.Google.RedirectURL,
 		Scopes:       []string{"openid", "email", "profile"},
 		Endpoint:     google.Endpoint,
 	}
@@ -380,7 +380,7 @@ func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	payload, err := idtoken.Validate(r.Context(), rawIDToken, app.config.google.clientID)
+	payload, err := idtoken.Validate(r.Context(), rawIDToken, app.config.Google.ClientID)
 	if err != nil {
 		app.errorResponse(w, r, http.StatusUnauthorized, "invalid id_token")
 		return
@@ -494,7 +494,7 @@ func (app *application) googleAuthHandler(w http.ResponseWriter, r *http.Request
 // @Failure      401  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/logout [post]
-func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		app.authenticationRequiredResponse(w, r)
@@ -513,7 +513,7 @@ func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   app.config.env == "production",
+		Secure:   app.config.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -533,7 +533,7 @@ func (app *application) logoutUserHandler(w http.ResponseWriter, r *http.Request
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/forgot-password [post]
-func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.ForgotPasswordInput
 
 	err := app.readJSON(w, r, &input)
@@ -584,7 +584,7 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 		}
 
 		taskPayload := map[string]any{
-			"frontend_url": app.config.frontendURL,
+			"frontend_url": app.config.FrontendURL,
 			"user_email":   user.Email,
 			"first_name":   user.FirstName,
 			"reset_token":  token.Plaintext,
@@ -615,7 +615,7 @@ func (app *application) forgotPasswordHandler(w http.ResponseWriter, r *http.Req
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /auth/reset-password [post]
-func (app *application) resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.ResetPasswordInput
 
 	err := app.readJSON(w, r, &input)

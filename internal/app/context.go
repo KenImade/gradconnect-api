@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -11,12 +11,12 @@ type contextKey string
 
 const userContextKey = contextKey("user")
 
-func (app *application) contextSetUser(r *http.Request, user *data.User) *http.Request {
+func (app *App) contextSetUser(r *http.Request, user *data.User) *http.Request {
 	ctx := context.WithValue(r.Context(), userContextKey, user)
 	return r.WithContext(ctx)
 }
 
-func (app *application) contextGetUser(r *http.Request) *data.User {
+func (app *App) contextGetUser(r *http.Request) *data.User {
 	user, ok := r.Context().Value(userContextKey).(*data.User)
 	if !ok {
 		// No auth middleware ran — treat as anonymous.

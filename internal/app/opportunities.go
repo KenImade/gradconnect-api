@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/opportunities [post]
-func (app *application) createOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) createOpportunityHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.CreateOpportunityInput
 
 	err := app.readJSON(w, r, &input)
@@ -74,7 +74,7 @@ func (app *application) createOpportunityHandler(w http.ResponseWriter, r *http.
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /admin/opportunity/{id} [get]
-func (app *application) showOpportunityByIDHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) showOpportunityByIDHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -115,7 +115,7 @@ func (app *application) showOpportunityByIDHandler(w http.ResponseWriter, r *htt
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/opportunities/{id} [patch]
-func (app *application) updateOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateOpportunityHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -168,7 +168,7 @@ func (app *application) updateOpportunityHandler(w http.ResponseWriter, r *http.
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/opportunities/{id} [delete]
-func (app *application) deleteOpportunityHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) deleteOpportunityHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -199,7 +199,7 @@ func (app *application) deleteOpportunityHandler(w http.ResponseWriter, r *http.
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /opportunities/{slug} [get]
-func (app *application) showOpportunityBySlugHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) showOpportunityBySlugHandler(w http.ResponseWriter, r *http.Request) {
 	slug, err := app.readSlugParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -245,7 +245,7 @@ func (app *application) showOpportunityBySlugHandler(w http.ResponseWriter, r *h
 // @Failure      422  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /opportunities [get]
-func (app *application) listOpportunitiesHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listOpportunitiesHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.OpportunityFilters
 
 	v := validator.New()
@@ -318,7 +318,7 @@ func (app *application) listOpportunitiesHandler(w http.ResponseWriter, r *http.
 // @Failure      422  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
 // @Router       /admin/opportunities [get]
-func (app *application) listAdminOpportunitiesHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listAdminOpportunitiesHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.OpportunityFilters
 
 	v := validator.New()

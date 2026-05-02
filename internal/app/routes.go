@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"net/http"
@@ -7,11 +7,14 @@ import (
 	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/julienschmidt/httprouter"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
-
-	_ "api.gradconnect.com/cmd/api/docs"
 )
 
-func (app *application) routes() http.Handler {
+// Routes returns the fully composed HTTP handler for use in tests and in Serve.
+func (app *App) Routes() http.Handler {
+	return app.routes()
+}
+
+func (app *App) routes() http.Handler {
 	router := httprouter.New()
 
 	router.NotFound = http.HandlerFunc(app.notFoundResponse)
@@ -20,7 +23,7 @@ func (app *application) routes() http.Handler {
 	// Swagger and Redoc Documentation
 	router.HandlerFunc(http.MethodGet, "/", app.redocHandler)
 	router.HandlerFunc(http.MethodGet, "/api/v1/docs/redoc", app.redocHandler)
-	if app.config.env != "production" {
+	if app.config.Env != "production" {
 		router.Handler(http.MethodGet, "/api/v1/docs/swagger/*any", httpSwagger.WrapHandler)
 	}
 
@@ -152,12 +155,8 @@ func (app *application) routes() http.Handler {
 
 	// Build the middleware chain. Inner-to-outer order:
 	//   router → authenticate → rateLimitAll → enableCORS → logRequests → Sentry
-	//
-	// Sentry is outermost so it sees every request before any other middleware
-	// runs, captures panics before they're handled, and tags every Sentry event
-	// with the full request context (URL, method, headers).
 	sentryMiddleware := sentryhttp.New(sentryhttp.Options{
-		Repanic: true, // re-panic after capturing so logRequests can record the 500
+		Repanic: true,
 	})
 
 	return sentryMiddleware.Handle(

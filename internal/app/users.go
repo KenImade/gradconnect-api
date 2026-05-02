@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ import (
 // @Failure      401  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /me [get]
-func (app *application) getCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) getCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	user := app.contextGetUser(r)
 
 	permissions, err := app.models.Permissions.GetAllForUser(r.Context(), app.db, user.ID)
@@ -63,7 +63,7 @@ func (app *application) getCurrentUserHandler(w http.ResponseWriter, r *http.Req
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /me [patch]
-func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input data.UpdateUserInput
 
 	err := app.readJSON(w, r, &input)

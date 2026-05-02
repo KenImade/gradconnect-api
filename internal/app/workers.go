@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 // The returned pool is not started — the caller is responsible for
 // running it (typically `go pool.Run(ctx)`) and for cancelling its
 // context on shutdown.
-func (app *application) buildWorkerPool() *worker.Pool {
+func (app *App) buildWorkerPool() *worker.Pool {
 	dispatcher := worker.NewDispatcher()
 
 	dispatcher.Register("email:verify", app.handleEmailVerify)
@@ -30,7 +30,7 @@ func (app *application) buildWorkerPool() *worker.Pool {
 
 // --- Job handlers ---
 
-func (app *application) handleEmailVerify(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleEmailVerify(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		BaseURL         string `json:"base_url"`
 		Email           string `json:"user_email"`
@@ -43,7 +43,7 @@ func (app *application) handleEmailVerify(ctx context.Context, _ string, payload
 	return app.mailer.Send(data.Email, "email_verify.tmpl", data)
 }
 
-func (app *application) handleEmailWelcome(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleEmailWelcome(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		Email     string `json:"user_email"`
 		FirstName string `json:"first_name"`
@@ -54,7 +54,7 @@ func (app *application) handleEmailWelcome(ctx context.Context, _ string, payloa
 	return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
 }
 
-func (app *application) handleEmailPasswordReset(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleEmailPasswordReset(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		FrontendURL string `json:"frontend_url"`
 		Email       string `json:"user_email"`
@@ -67,7 +67,7 @@ func (app *application) handleEmailPasswordReset(ctx context.Context, _ string, 
 	return app.mailer.Send(data.Email, "password_reset.tmpl", data)
 }
 
-func (app *application) handleAdminImport(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleAdminImport(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		ImportJobID string `json:"import_job_id"`
 	}](payload)
@@ -77,7 +77,7 @@ func (app *application) handleAdminImport(ctx context.Context, _ string, payload
 	return app.processImport(data.ImportJobID)
 }
 
-func (app *application) handleEmployerRecalcRatings(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleEmployerRecalcRatings(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		EmployerID string `json:"employer_id"`
 	}](payload)
@@ -87,7 +87,7 @@ func (app *application) handleEmployerRecalcRatings(ctx context.Context, _ strin
 	return app.models.Employers.RecalculateRatings(ctx, app.db, data.EmployerID)
 }
 
-func (app *application) handleEmailDeadlineReminder(ctx context.Context, _ string, payload []byte) error {
+func (app *App) handleEmailDeadlineReminder(ctx context.Context, _ string, payload []byte) error {
 	data, err := worker.UnmarshalPayload[struct {
 		Recipient   string                          `json:"recipient"`
 		FirstName   string                          `json:"first_name"`

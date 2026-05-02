@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ var allowedLogoExtensions = map[string]string{
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/uploads/logo [post]
-func (app *application) uploadLogoHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) uploadLogoHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxLogoSize)
 
 	if err := r.ParseMultipartForm(maxLogoSize); err != nil {

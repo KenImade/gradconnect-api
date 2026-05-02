@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ import (
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/import [post]
-func (app *application) startImportHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) startImportHandler(w http.ResponseWriter, r *http.Request) {
 	importType := r.URL.Query().Get("type")
 	if !data.IsPermittedImportType(importType) {
 		app.errorResponse(w, r, http.StatusUnprocessableEntity, "invalid import type; must be one of: employers, opportunities, assessments")
@@ -112,7 +112,7 @@ func (app *application) startImportHandler(w http.ResponseWriter, r *http.Reques
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/import/{id} [get]
-func (app *application) getImportJobHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) getImportJobHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
 		app.notFoundResponse(w, r)
@@ -148,7 +148,7 @@ func (app *application) getImportJobHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      422    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /admin/import [get]
-func (app *application) listImportJobsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) listImportJobsHandler(w http.ResponseWriter, r *http.Request) {
 	qs := r.URL.Query()
 	v := validator.New()
 
@@ -186,8 +186,8 @@ func (app *application) listImportJobsHandler(w http.ResponseWriter, r *http.Req
 // @Failure      409   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /admin/jobs/deadline-reminders [post]
-func (app *application) triggerDeadlineRemindersHandler(w http.ResponseWriter, r *http.Request) {
-	enqueued, err := app.worker.RunDeadlineRemindersNow(r.Context(), app.config.baseURL, app.config.frontendURL)
+func (app *App) triggerDeadlineRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	enqueued, err := app.worker.RunDeadlineRemindersNow(r.Context(), app.config.BaseURL, app.config.FrontendURL)
 	if err != nil {
 		if errors.Is(err, worker.ErrAlreadyRanToday) {
 			app.errorResponse(w, r, http.StatusConflict, "deadline reminders already ran today")
@@ -220,7 +220,7 @@ func (app *application) triggerDeadlineRemindersHandler(w http.ResponseWriter, r
 // @Failure      403  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/analytics [get]
-func (app *application) getAnalyticsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) getAnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	resp := data.AnalyticsResponse{}
 
@@ -320,7 +320,7 @@ type RecalcRatingsResponse struct {
 // @Failure      409  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/jobs/recalculate-ratings [post]
-func (app *application) triggerRecalcRatingsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) triggerRecalcRatingsHandler(w http.ResponseWriter, r *http.Request) {
 	count, err := app.worker.RunRecalcRatingsNow(r.Context())
 	if err != nil {
 		if errors.Is(err, worker.ErrAlreadyRanToday) {
@@ -357,7 +357,7 @@ type CleanupSessionsResponse struct {
 // @Failure      403  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admin/jobs/cleanup-sessions [post]
-func (app *application) triggerCleanupSessionsHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) triggerCleanupSessionsHandler(w http.ResponseWriter, r *http.Request) {
 	deleted, err := app.worker.RunCleanupSessionsNow(r.Context())
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 // on failure (which becomes part of the row_errors report).
 type rowProcessor func(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error
 
-func (app *application) processImport(jobID string) error {
+func (app *App) processImport(jobID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -130,7 +130,7 @@ func (app *application) processImport(jobID string) error {
 
 // --- per-row processors ---
 
-func (app *application) processEmployerRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
+func (app *App) processEmployerRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
 	input := data.CreateEmployerInput{
 		Name:     row[colIdx["name"]],
 		Slug:     row[colIdx["slug"]],
@@ -161,7 +161,7 @@ func (app *application) processEmployerRow(ctx context.Context, tx pgx.Tx, row [
 	return err
 }
 
-func (app *application) processOpportunityRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
+func (app *App) processOpportunityRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
 	employerSlug := row[colIdx["employer_slug"]]
 	employer, err := app.models.Employers.GetBySlug(ctx, tx, employerSlug)
 	if err != nil {
@@ -220,7 +220,7 @@ func (app *application) processOpportunityRow(ctx context.Context, tx pgx.Tx, ro
 	return err
 }
 
-func (app *application) processAssessmentRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
+func (app *App) processAssessmentRow(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error {
 	return errors.New("assessment import not yet implemented — use the API directly")
 }
 
