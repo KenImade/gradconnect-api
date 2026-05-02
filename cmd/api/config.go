@@ -123,6 +123,12 @@ func parseConfig() config {
 
 	flag.Parse()
 
+	if len(cfg.cors.trustedOrigins) == 0 {
+		if v := os.Getenv("GRADCONNECT_CORS_TRUSTED_ORIGINS"); v != "" {
+			cfg.cors.trustedOrigins = strings.Fields(v)
+		}
+	}
+
 	if cfg.sentry.env == "" {
 		cfg.sentry.env = cfg.env
 	}
