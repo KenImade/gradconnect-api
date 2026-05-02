@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,7 +76,14 @@ func resolveDBDSN() string {
 func parseConfig() config {
 	var cfg config
 
-	flag.IntVar(&cfg.port, "port", cfg.port, "API server port")
+	defaultPort := 8080
+	if v := os.Getenv("PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			defaultPort = p
+		}
+	}
+	flag.IntVar(&cfg.port, "port", defaultPort, "API server port")
+
 	flag.StringVar(&cfg.env, "env", os.Getenv("GRADCONNECT_ENV"), "Environment (development|staging|production)")
 
 	flag.StringVar(&cfg.db.dsn, "db-dsn", resolveDBDSN(), "PostgreSQL DSN")
