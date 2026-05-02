@@ -129,6 +129,8 @@ func (app *application) routes() http.Handler {
 	// Admin import routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/import",
 		app.requirePermission("admin:full", app.startImportHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/import",
+		app.requirePermission("admin:full", app.listImportJobsHandler))
 	router.HandlerFunc(http.MethodGet, "/api/v1/admin/import/:id",
 		app.requirePermission("admin:full", app.getImportJobHandler))
 

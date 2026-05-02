@@ -149,3 +149,66 @@ func (m ImportJobModel) MarkFailed(ctx context.Context, db DBTX, id string, rows
 	_, err := db.Exec(ctx, query, rowsTotal, errMsg, id)
 	return err
 }
+
+func (m ImportJobModel) GetRecent(ctx context.Context, db DBTX, limit int) ([]*ImportJob, error) {
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	query := `
+        SELECT id, user_id, import_type, file_path, status,
+               rows_total, rows_imported, error_message, row_errors, created_at, completed_at
+        FROM import_job
+        ORDER BY created_at DESC
+        LIMIT $1`
+
+	rows, err := db.Query(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	jobs := []*ImportJob{}
+	for rows.Next() {
+		job := &ImportJob{}
+		var rowErrorsJSON []byte
+		err := rows.Scan(
+			&job.ID,
+			&job.UserID,
+			&job.ImportType,
+			&job.FilePath,
+			&job.Status,
+			&job.RowsTotal,
+			&job.RowsImported,
+			&job.ErrorMessage,
+			&rowErrorsJSON,
+			&job.CreatedAt,
+			&job.CompletedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(rowErrorsJSON) > 0 {
+			if err := json.Unmarshal(rowErrorsJSON, &job.RowErrors); err != nil {
+				return nil, fmt.Errorf("unmarshaling row_errors for job %s: %w", job.ID, err)
+			}
+		}
+
+		if job.RowsTotal != nil && job.RowsImported != nil {
+			failed := *job.RowsTotal - *job.RowsImported
+			job.RowsFailed = &failed
+		}
+
+		jobs = append(jobs, job)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return jobs, nil
+}

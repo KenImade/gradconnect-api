@@ -265,6 +265,7 @@ func (app *application) listOpportunitiesHandler(w http.ResponseWriter, r *http.
 
 	input.IntakeYear = app.readInt(qs, "intake_year", 0, v)
 	input.Industry = app.readString(qs, "industry", "")
+	input.EmployerSlug = app.readString(qs, "employer_slug", "")
 	input.Location = app.readString(qs, "location", "")
 	input.Discipline = app.readString(qs, "discipline", "")
 	input.DeadlineBefore = app.readDate(qs, "deadline_before", time.Time{}, v)

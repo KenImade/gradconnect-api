@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/validator"
 	"api.gradconnect.com/internal/worker"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -129,6 +130,43 @@ func (app *application) getImportJobHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"data": job}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// listImportJobsHandler godoc
+// @Summary      List recent import jobs
+// @Description  Returns the most recent import jobs, newest first. Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Param        limit  query  int  false  "Max results (1-100, default 50)"
+// @Success      200    {object}  envelope{data=[]data.ImportJob}
+// @Failure      401    {object}  ErrorResponse
+// @Failure      403    {object}  ErrorResponse
+// @Failure      422    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /admin/import [get]
+func (app *application) listImportJobsHandler(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	v := validator.New()
+
+	limit := app.readInt(qs, "limit", 50, v)
+	v.Check(limit >= 1, "limit", "must be at least 1")
+	v.Check(limit <= 100, "limit", "must be at most 100")
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	jobs, err := app.models.ImportJob.GetRecent(r.Context(), app.db, limit)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"data": jobs}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

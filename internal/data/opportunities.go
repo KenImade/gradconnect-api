@@ -88,6 +88,7 @@ type OpportunityFilters struct {
 	Industry       string
 	Location       string
 	Discipline     string
+	EmployerSlug   string
 	DeadlineBefore time.Time
 	DeadlineAfter  time.Time
 	Filters
@@ -421,26 +422,27 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		FROM opportunity o
 		INNER JOIN employer e ON e.id = o.employer_id
 		WHERE (o.search_vector @@ plainto_tsquery('english', $1) OR $1 = '')
-		  AND ($2::opportunity_type IS NULL OR o.type = $2)
-		  AND (o.intake_year = $3 OR $3 = 0)
-		  AND (e.industry = $4 OR $4 = '')
-		  AND (o.location ILIKE '%%' || $5 || '%%' OR $5 = '')
-		  AND ($6 = '' OR $6 = ANY(o.discipline_tags))
-		  AND ($7::date IS NULL OR o.deadline <= $7)
-		  AND ($8::date IS NULL OR o.deadline >= $8)
-		  AND (
-				($9 = 'all')
-				OR ($9 = 'withdrawn' AND o.is_active = false)
-				OR ($9 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
-				OR ($9 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
-				OR ($9 = 'open' AND o.is_active = true
-					AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
-					AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
-				OR ($9 = 'open_or_upcoming' AND o.is_active = true
-					AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
-			)
-		ORDER BY o.%s %s, o.id ASC
-		LIMIT $10 OFFSET $11
+			AND ($2::opportunity_type IS NULL OR o.type = $2)
+			AND (o.intake_year = $3 OR $3 = 0)
+			AND (e.industry = $4 OR $4 = '')
+			AND (e.slug = $5 OR $5 = '')
+			AND (o.location ILIKE '%%' || $6 || '%%' OR $6 = '')
+			AND ($7 = '' OR $7 = ANY(o.discipline_tags))
+			AND ($8::date IS NULL OR o.deadline <= $8)
+			AND ($9::date IS NULL OR o.deadline >= $9)
+			AND (
+					($10 = 'all')                             
+					OR ($10 = 'withdrawn' AND o.is_active = false)
+					OR ($10 = 'upcoming' AND o.is_active = true AND o.opens_at IS NOT NULL AND CURRENT_DATE < o.opens_at)
+					OR ($10 = 'closed' AND o.is_active = true AND o.deadline IS NOT NULL AND CURRENT_DATE > o.deadline)
+					OR ($10 = 'open' AND o.is_active = true
+						AND (o.opens_at IS NULL OR CURRENT_DATE >= o.opens_at)
+						AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
+					OR ($10 = 'open_or_upcoming' AND o.is_active = true
+						AND (o.deadline IS NULL OR CURRENT_DATE <= o.deadline))
+				)
+			ORDER BY o.%s %s, o.id ASC
+			LIMIT $11 OFFSET $12
 	`, selectOpportunityColumns, input.Filters.sortColumn(), input.Filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -464,6 +466,7 @@ func (m OpportunityModel) GetAll(ctx context.Context, db DBTX, input Opportunity
 		typeFilter,
 		input.IntakeYear,
 		input.Industry,
+		input.EmployerSlug,
 		input.Location,
 		input.Discipline,
 		deadlineBefore,
