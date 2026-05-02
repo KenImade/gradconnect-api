@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/url"
 	"os"
 	"time"
 
+	"api.gradconnect.com/cmd/api/docs"
 	_ "api.gradconnect.com/cmd/api/docs" // swagger docs
 	"api.gradconnect.com/internal/app"
 	"api.gradconnect.com/internal/mailer"
@@ -27,6 +29,11 @@ import (
 // @tag.description Admin-only management endpoints for content seeding, editing, and moderation
 func main() {
 	cfg := parseConfig()
+
+	if u, err := url.Parse(cfg.baseURL); err == nil && u.Host != "" {
+		docs.SwaggerInfo.Host = u.Host
+		docs.SwaggerInfo.Schemes = []string{u.Scheme}
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
