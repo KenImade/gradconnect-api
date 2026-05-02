@@ -51,13 +51,34 @@ type config struct {
 	}
 }
 
+// resolveDBDSN picks the DSN env var based on the current environment.
+// It checks for environment-specific vars first (GRADCONNECT_DB_DSN_STAGING,
+// GRADCONNECT_DB_DSN_PROD), falling back to the generic GRADCONNECT_DB_DSN.
+func resolveDBDSN() string {
+	switch os.Getenv("GRADCONNECT_ENV") {
+	case "production":
+		if v := os.Getenv("GRADCONNECT_DB_DSN_PROD"); v != "" {
+			return v
+		}
+	case "staging":
+		if v := os.Getenv("GRADCONNECT_DB_DSN_STAGING"); v != "" {
+			return v
+		}
+	case "test":
+		if v := os.Getenv("GRADCONNECT_DB_DSN_TEST"); v != "" {
+			return v
+		}
+	}
+	return os.Getenv("GRADCONNECT_DB_DSN")
+}
+
 func parseConfig() config {
 	var cfg config
 
 	flag.IntVar(&cfg.port, "port", cfg.port, "API server port")
 	flag.StringVar(&cfg.env, "env", os.Getenv("GRADCONNECT_ENV"), "Environment (development|staging|production)")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GRADCONNECT_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", resolveDBDSN(), "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.minConns, "db-min-conns", 5, "PostgreSQL min connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")

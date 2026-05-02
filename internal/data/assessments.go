@@ -337,7 +337,7 @@ func (m AssessmentModel) GetAll(ctx context.Context, db DBTX, input AssessmentFi
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, input.Filters.Page, input.Filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, input.Filters.Page, input.Filters.PageSize)
 
 	return assessments, metadata, nil
 }
@@ -382,7 +382,7 @@ func (m AssessmentModel) GetAllByEmployerSlug(ctx context.Context, db DBTX, slug
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return assessments, metadata, nil
 }

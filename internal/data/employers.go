@@ -426,7 +426,7 @@ func (m EmployerModel) GetAll(ctx context.Context, db DBTX, search, industry str
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return employers, metadata, nil
 }

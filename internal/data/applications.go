@@ -282,7 +282,7 @@ func (m ApplicationTrackerModel) List(ctx context.Context, db DBTX, userID, stat
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return applications, metadata, nil
 }

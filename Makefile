@@ -1,5 +1,17 @@
 include .envrc
 
+# Select the correct DB DSN based on the current environment.
+# Override by setting db_dsn= on the command line: make run/api db_dsn=postgres://...
+ifeq ($(GRADCONNECT_ENV),production)
+  db_dsn = $(GRADCONNECT_DB_DSN_PROD)
+else ifeq ($(GRADCONNECT_ENV),staging)
+  db_dsn = $(GRADCONNECT_DB_DSN_STAGING)
+else ifeq ($(GRADCONNECT_ENV),test)
+  db_dsn = $(GRADCONNECT_TEST_DB_DSN)
+else
+  db_dsn = $(GRADCONNECT_DB_DSN)
+endif
+
 ## help: print this help message
 .PHONY: help
 help:
@@ -14,12 +26,9 @@ confirm:
 .PHONY: run/api
 run/api:
 	go run ./cmd/api \
-  -port=4000 \
-  -db-dsn="postgres://gradconnect:gradconnect_dev_pw@localhost:5432/gradconnect?sslmode=disable" \
-  -cors-trusted-origins=http://localhost:3000 \
-  -frontend-url=http://localhost:3000 \
-  -base-url=http://localhost:4000 \
-  -smtp-sender='GradConnect <no-reply@gradconnect.ng>'
+	  -port=${GRADCONNECT_PORT} \
+	  -db-dsn="${db_dsn}" \
+	  -cors-trusted-origins="${GRADCONNECT_CORS_TRUSTED_ORIGINS}"
 
 ## build/api: build the cmd/api application
 .PHONY: build/api
@@ -66,7 +75,7 @@ db/seed/reviews:
 .PHONY: docs/generate
 docs/generate:
 	@echo 'Generating API documentation...'
-	swag init -g cmd/api/main.go -d cmd/api,internal/app -o cmd/api/docs --parseDependency --parseInternal
+	swag init -g main.go -d cmd/api,internal/app -o cmd/api/docs --parseDependency --parseInternal
 
 ## audit: tidy dependencies, vet, staticcheck, and test
 .PHONY: audit
@@ -80,7 +89,12 @@ audit:
 	@echo 'Running tests...'
 	go test -race -vet=off ./...
 
-## test: run all tests
+## test: run unit tests (no database required)
 .PHONY: test
 test:
- 	go test -race -vet=off ./...
+	go test -race -vet=off $(shell go list ./... | grep -v test/integration)
+
+## test/integration: run integration tests against the test database
+.PHONY: test/integration
+test/integration:
+	go test -v -race ./test/integration/ -timeout 60s

@@ -177,7 +177,7 @@ func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	metadata := CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 	return bookmarks, metadata, nil
 }
 

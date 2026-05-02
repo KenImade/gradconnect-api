@@ -17,6 +17,9 @@ make db/seed/all                     # Seed test data
 make db/psql                         # Connect to dev DB via Docker
 
 make docs/generate        # Regenerate Swagger/OpenAPI docs from annotations
+
+make test/integration     # Run integration tests (requires test DB on port 5433)
+                          # First-time setup: migrate -path ./migrations -database $GRADCONNECT_TEST_DB_DSN up
 ```
 
 ## Architecture
