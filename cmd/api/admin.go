@@ -11,6 +11,7 @@ import (
 	"api.gradconnect.com/internal/worker"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/sync/errgroup"
 )
 
 // startImportHandler godoc
@@ -172,13 +173,19 @@ func (app *application) listImportJobsHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
-// triggerDeadlineRemindersHandler manually fires the deadline reminder
-// enqueue job. Useful for testing in staging, recovery from a missed
-// cron, or admin-initiated re-runs.
-//
-// Bypasses the time-of-day check but still respects the daily idempotency
-// guard via the cron_run table — call it twice on the same day and the
-// second call returns "already run today".
+// triggerDeadlineRemindersHandler godoc
+// @Summary      Trigger the deadline reminder enqueue job
+// @Description  Manually fires the deadline reminder enqueue job. Useful for testing in staging,
+// @Description  recovery from a missed cron, or admin-initiated re-runs. Returns the count of
+// @Description  reminder jobs queued for execution. Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Success      202   {object}  envelope{data=data.DeadlineReminderResponse}
+// @Failure      401   {object}  ErrorResponse
+// @Failure      403   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /admin/jobs/deadline-reminders [post]
 func (app *application) triggerDeadlineRemindersHandler(w http.ResponseWriter, r *http.Request) {
 	enqueued, err := app.worker.RunDeadlineRemindersNow(r.Context(), app.config.baseURL, app.config.frontendURL)
 	if err != nil {
@@ -190,13 +197,179 @@ func (app *application) triggerDeadlineRemindersHandler(w http.ResponseWriter, r
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{
-		"data": map[string]any{
-			"enqueued": enqueued,
-			"message":  "deadline reminders enqueued",
-		},
-	}, nil)
+	resp := data.DeadlineReminderResponse{
+		Enqueued: enqueued,
+		Message:  "deadline reminders enqueued",
+	}
+
+	err = app.writeJSON(w, http.StatusAccepted, envelope{"data": resp}, nil)
 	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// getAnalyticsHandler godoc
+// @Summary      Admin dashboard analytics
+// @Description  Returns aggregated counts, 30-day time-series data, top employers,
+// @Description  top opportunities, and recent job runs in a single response.
+// @Description  Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Success      200  {object}  envelope{data=data.AnalyticsResponse}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/analytics [get]
+func (app *application) getAnalyticsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	resp := data.AnalyticsResponse{}
+
+	// Six independent queries run in parallel. errgroup cancels in-flight
+	// queries if any one fails, so we don't waste compute on a request
+	// the client will never see.
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		c, err := app.models.Analytics.GetCounts(gctx)
+		if err != nil {
+			return err
+		}
+		resp.Counts = c
+		return nil
+	})
+
+	g.Go(func() error {
+		s, err := app.models.Analytics.RegistrationsTimeSeries(gctx)
+		if err != nil {
+			return err
+		}
+		resp.TimeSeries.Registrations = s
+		return nil
+	})
+
+	g.Go(func() error {
+		s, err := app.models.Analytics.BookmarksTimeSeries(gctx)
+		if err != nil {
+			return err
+		}
+		resp.TimeSeries.Bookmarks = s
+		return nil
+	})
+
+	g.Go(func() error {
+		s, err := app.models.Analytics.ReviewsTimeSeries(gctx)
+		if err != nil {
+			return err
+		}
+		resp.TimeSeries.ReviewsSubmitted = s
+		return nil
+	})
+
+	g.Go(func() error {
+		t, err := app.models.Analytics.TopEmployers(gctx, 10)
+		if err != nil {
+			return err
+		}
+		resp.TopEmployers = t
+		return nil
+	})
+
+	g.Go(func() error {
+		t, err := app.models.Analytics.TopOpportunities(gctx, 10)
+		if err != nil {
+			return err
+		}
+		resp.TopOpportunities = t
+		return nil
+	})
+
+	g.Go(func() error {
+		j, err := app.models.Analytics.RecentJobs(gctx)
+		if err != nil {
+			return err
+		}
+		resp.RecentJobs = j
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusOK, envelope{"data": resp}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+type RecalcRatingsResponse struct {
+	Recalculated int    `json:"recalculated"`
+	Message      string `json:"message"`
+}
+
+// triggerRecalcRatingsHandler godoc
+// @Summary      Trigger employer ratings recalculation
+// @Description  Recomputes cached avg_difficulty_rating, avg_experience_rating, and
+// @Description  review_count for every employer. Returns the number of employers processed.
+// @Description  Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Success      202  {object}  envelope{data=RecalcRatingsResponse}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/jobs/recalculate-ratings [post]
+func (app *application) triggerRecalcRatingsHandler(w http.ResponseWriter, r *http.Request) {
+	count, err := app.worker.RunRecalcRatingsNow(r.Context())
+	if err != nil {
+		if errors.Is(err, worker.ErrAlreadyRanToday) {
+			app.errorResponse(w, r, http.StatusConflict, "ratings recalculation already ran today")
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	resp := RecalcRatingsResponse{
+		Recalculated: count,
+		Message:      "employer ratings recalculated",
+	}
+
+	if err := app.writeJSON(w, http.StatusAccepted, envelope{"data": resp}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+type CleanupSessionsResponse struct {
+	Deleted int    `json:"deleted"`
+	Message string `json:"message"`
+}
+
+// triggerCleanupSessionsHandler godoc
+// @Summary      Trigger expired session cleanup
+// @Description  Deletes all expired sessions from the database. Returns the count deleted.
+// @Description  Safe to run multiple times. Requires admin:full permission.
+// @Tags         Admin
+// @Produce      json
+// @Success      202  {object}  envelope{data=CleanupSessionsResponse}
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/jobs/cleanup-sessions [post]
+func (app *application) triggerCleanupSessionsHandler(w http.ResponseWriter, r *http.Request) {
+	deleted, err := app.worker.RunCleanupSessionsNow(r.Context())
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	resp := CleanupSessionsResponse{
+		Deleted: deleted,
+		Message: "expired sessions cleaned up",
+	}
+
+	if err := app.writeJSON(w, http.StatusAccepted, envelope{"data": resp}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
 }

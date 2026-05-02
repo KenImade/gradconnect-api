@@ -141,6 +141,14 @@ func (app *application) routes() http.Handler {
 	// Admin job triggers
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/jobs/deadline-reminders",
 		app.requirePermission("admin:full", app.triggerDeadlineRemindersHandler))
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/jobs/recalculate-ratings",
+		app.requirePermission("admin:full", app.triggerRecalcRatingsHandler))
+	router.HandlerFunc(http.MethodPost, "/api/v1/admin/jobs/cleanup-sessions",
+		app.requirePermission("admin:full", app.triggerCleanupSessionsHandler))
+
+	// Admin analytics
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/analytics",
+		app.requirePermission("admin:full", app.getAnalyticsHandler))
 
 	// Build the middleware chain. Inner-to-outer order:
 	//   router → authenticate → rateLimitAll → enableCORS → logRequests → Sentry

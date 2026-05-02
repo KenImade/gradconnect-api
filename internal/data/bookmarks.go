@@ -44,6 +44,11 @@ type DeadlineReminderRecipient struct {
 	Bookmarks []DeadlineReminderBookmark
 }
 
+type DeadlineReminderResponse struct {
+	Enqueued int    `json:"enqueued"`
+	Message  string `json:"message"`
+}
+
 type DeadlineReminderBookmark struct {
 	Title           string
 	EmployerName    string
