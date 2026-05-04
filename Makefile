@@ -1,16 +1,4 @@
-include .envrc
-
-# Select the correct DB DSN based on the current environment.
-# Override by setting db_dsn= on the command line: make run/api db_dsn=postgres://...
-ifeq ($(GRADCONNECT_ENV),production)
-  db_dsn = $(GRADCONNECT_DB_DSN_PROD)
-else ifeq ($(GRADCONNECT_ENV),staging)
-  db_dsn = $(GRADCONNECT_DB_DSN_STAGING)
-else ifeq ($(GRADCONNECT_ENV),test)
-  db_dsn = $(GRADCONNECT_TEST_DB_DSN)
-else
-  db_dsn = $(GRADCONNECT_DB_DSN)
-endif
+include .envrc.local
 
 ## help: print this help message
 .PHONY: help
@@ -27,7 +15,7 @@ confirm:
 run/api:
 	go run ./cmd/api \
 	  -port=${GRADCONNECT_PORT} \
-	  -db-dsn="${db_dsn}" \
+	  -db-dsn="${GRADCONNECT_DB_DSN}" \
 	  -cors-trusted-origins="${GRADCONNECT_CORS_TRUSTED_ORIGINS}"
 
 ## build/api: build the cmd/api application
