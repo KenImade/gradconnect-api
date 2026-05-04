@@ -18,11 +18,12 @@ const Version = "1.0.0"
 // Initialisation-only settings (DB pool sizes, SMTP credentials, R2 keys, Sentry DSN)
 // are handled by cmd/api and never reach this package.
 type Config struct {
-	Port        int
-	Env         string
-	FrontendURL string
-	BaseURL     string
-	CORS        struct {
+	Port         int
+	CookieDomain string
+	Env          string
+	FrontendURL  string
+	BaseURL      string
+	CORS         struct {
 		TrustedOrigins []string
 	}
 	Google struct {

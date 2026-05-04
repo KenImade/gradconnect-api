@@ -16,7 +16,8 @@ type config struct {
 	cors struct {
 		trustedOrigins []string
 	}
-	db struct {
+	cookieDomain string
+	db           struct {
 		dsn          string
 		maxOpenConns int
 		minConns     int
@@ -100,10 +101,14 @@ func parseConfig() config {
 	flag.StringVar(&cfg.env, "env", os.Getenv("GRADCONNECT_ENV"), "Environment (development|staging|production)")
 
 	flag.StringVar(&cfg.db.dsn, "db-dsn", resolveDBDSN(), "PostgreSQL DSN")
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
-	flag.IntVar(&cfg.db.minConns, "db-min-conns", 5, "PostgreSQL min connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 50, "PostgreSQL max open connections")
+	flag.IntVar(&cfg.db.minConns, "db-min-conns", 10, "PostgreSQL min connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 50, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
+
+	flag.StringVar(&cfg.cookieDomain, "cookie-domain",
+		os.Getenv("GRADCONNECT_COOKIE_DOMAIN"),
+		"Cookie domain (e.g. gradconnect.ng for production; leave empty for localhost dev)")
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", defaultSMTPHost, "SMTP host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", defaultSMTPPort, "SMTP port")
@@ -154,6 +159,7 @@ func (c config) toAppConfig() app.Config {
 	var ac app.Config
 	ac.Port = c.port
 	ac.Env = c.env
+	ac.CookieDomain = c.cookieDomain
 	ac.FrontendURL = c.frontendURL
 	ac.BaseURL = c.baseURL
 	ac.CORS.TrustedOrigins = c.cors.trustedOrigins

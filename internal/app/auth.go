@@ -107,10 +107,11 @@ func (app *App) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
+		Domain:   app.config.CookieDomain,
 		Value:    session.ID,
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   app.config.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -193,10 +194,11 @@ func (app *App) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
+		Domain:   app.config.CookieDomain,
 		Value:    session.ID,
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   app.config.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -466,10 +468,11 @@ func (app *App) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
+		Domain:   app.config.CookieDomain,
 		Value:    session.ID,
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   app.config.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -509,6 +512,7 @@ func (app *App) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
+		Domain:   app.config.CookieDomain,
 		Value:    "",
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
