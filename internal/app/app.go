@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/imagegen"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/ratelimit"
 	"api.gradconnect.com/internal/storage"
@@ -37,15 +38,16 @@ type Config struct {
 // are methods on this type, keeping them co-located with their dependencies
 // without relying on global state.
 type App struct {
-	config  Config
-	db      *pgxpool.Pool
-	limiter *ratelimit.MemoryLimiter
-	logger  *slog.Logger
-	mailer  *mailer.Mailer
-	models  data.Models
-	storage storage.Storage
-	worker  *worker.Pool
-	wg      sync.WaitGroup
+	config   Config
+	db       *pgxpool.Pool
+	imagegen *imagegen.Generator
+	limiter  *ratelimit.MemoryLimiter
+	logger   *slog.Logger
+	mailer   *mailer.Mailer
+	models   data.Models
+	storage  storage.Storage
+	worker   *worker.Pool
+	wg       sync.WaitGroup
 }
 
 // New constructs an App with all dependencies wired up. The worker pool is
@@ -54,17 +56,19 @@ type App struct {
 func New(
 	cfg Config,
 	db *pgxpool.Pool,
+	ig *imagegen.Generator,
 	logger *slog.Logger,
 	m *mailer.Mailer,
 	s storage.Storage,
 ) *App {
 	return &App{
-		config:  cfg,
-		db:      db,
-		limiter: ratelimit.NewMemoryLimiter(),
-		logger:  logger,
-		mailer:  m,
-		models:  data.NewModels(db),
-		storage: s,
+		config:   cfg,
+		db:       db,
+		imagegen: ig,
+		limiter:  ratelimit.NewMemoryLimiter(),
+		logger:   logger,
+		mailer:   m,
+		models:   data.NewModels(db),
+		storage:  s,
 	}
 }
