@@ -228,6 +228,9 @@ func (m EmployerModel) GetByID(ctx context.Context, db DBTX, id string) (*Employ
 		return nil, err
 	}
 
+	employer.Offices = normalizeJSONArray(employer.Offices)
+	employer.SocialLinks = normalizeJSONArray(employer.SocialLinks)
+
 	return &employer, nil
 }
 
@@ -268,6 +271,9 @@ func (m EmployerModel) GetBySlug(ctx context.Context, db DBTX, slug string) (*Em
 		}
 		return nil, err
 	}
+
+	employer.Offices = normalizeJSONArray(employer.Offices)
+	employer.SocialLinks = normalizeJSONArray(employer.SocialLinks)
 
 	return &employer, nil
 }
