@@ -9,6 +9,7 @@ import (
 
 	"api.gradconnect.com/cmd/api/docs"
 	"api.gradconnect.com/internal/app"
+	"api.gradconnect.com/internal/imagegen"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/storage"
 	"github.com/getsentry/sentry-go"
@@ -69,7 +70,13 @@ func main() {
 	}
 	logger.Info("storage initialised", "bucket", cfg.r2.bucket)
 
-	a := app.New(cfg.toAppConfig(), db, logger, m, storageClient)
+	ig, err := imagegen.New()
+	if err != nil {
+		logger.Error("imagegen init failed", "err", err)
+		os.Exit(1)
+	}
+
+	a := app.New(cfg.toAppConfig(), db, ig, logger, m, storageClient)
 
 	if err = a.Serve(); err != nil {
 		logger.Error(err.Error())

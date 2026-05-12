@@ -73,7 +73,7 @@ func (app *App) createOpportunityHandler(w http.ResponseWriter, r *http.Request)
 // @Success      200  {object}  envelope{data=data.Opportunity}
 // @Failure      404  {object}  envelope{error=object}
 // @Failure      500  {object}  envelope{error=object}
-// @Router       /admin/opportunity/{id} [get]
+// @Router       /admin/opportunities/{id} [get]
 func (app *App) showOpportunityByIDHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {

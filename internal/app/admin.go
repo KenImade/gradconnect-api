@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"api.gradconnect.com/internal/data"
+	"api.gradconnect.com/internal/imagegen"
 	"api.gradconnect.com/internal/validator"
 	"api.gradconnect.com/internal/worker"
 	"github.com/google/uuid"
@@ -371,5 +373,76 @@ func (app *App) triggerCleanupSessionsHandler(w http.ResponseWriter, r *http.Req
 
 	if err := app.writeJSON(w, http.StatusAccepted, envelope{"data": resp}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// generateOpportunityImageHandler godoc
+// @Summary      Generate social media post for opportunity
+// @Description  Generates a PNG image of a job opportunity for Social Media posts.
+// @Description  Safe to run multiple times. Requires admin:full permission.
+// @Tags         Admin
+// @Produce      png
+// @Success      200  {file}  binary  "PNG image of the opportunity card"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /admin/opportunities/{id}/image [get]
+// @Param        id      path      string  true   "Opportunity ID"
+// @Param        format  query     string  false  "Image format" Enums(twitter, instagram_square, instagram_portrait, story) default(twitter)
+func (app *App) generateOpportunityImageHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+	formatStr := r.URL.Query().Get("format")
+	if formatStr == "" {
+		formatStr = string(imagegen.FormatTwitter)
+	}
+	format := imagegen.Format(formatStr)
+
+	switch format {
+	case imagegen.FormatTwitter,
+		imagegen.FormatInstagramPortrait,
+		imagegen.FormatInstagramSquare,
+		imagegen.FormatStory:
+	default:
+		app.badRequestResponse(w, r, fmt.Errorf("unknown format %q", formatStr))
+		return
+	}
+
+	op, err := app.models.Opportunities.GetByID(r.Context(), app.db, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	card := imagegen.OpportunityCard{
+		Title:        op.Title,
+		EmployerName: op.Employer.Name,
+		Location:     op.Location,
+		Deadline:     op.Deadline,
+	}
+
+	img, err := app.imagegen.GenerateOpportunityCard(card, format)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	filename := fmt.Sprintf("opportunity-%s-%s.png", op.ID, format)
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Length", strconv.Itoa(len(img)))
+
+	if _, err := w.Write(img); err != nil {
+		app.logger.Error("writing image response", "err", err)
 	}
 }

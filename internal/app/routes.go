@@ -114,6 +114,8 @@ func (app *App) routes() http.Handler {
 		app.requirePermission("admin:full", app.deleteOpportunityHandler))
 	router.HandlerFunc(http.MethodGet, "/api/v1/admin/opportunities",
 		app.requirePermission("admin:full", app.listAdminOpportunitiesHandler))
+	router.HandlerFunc(http.MethodGet, "/api/v1/admin/opportunities/:id/image",
+		app.requirePermission("admin:full", app.generateOpportunityImageHandler))
 
 	// Admin assessments routes
 	router.HandlerFunc(http.MethodPost, "/api/v1/admin/assessments",
