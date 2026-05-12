@@ -56,7 +56,7 @@ type ApplicationOpportunityStub struct {
 	Title    string                  `json:"title"`
 	Slug     string                  `json:"slug"`
 	Type     string                  `json:"type"`
-	Deadline time.Time               `json:"deadline"`
+	Deadline *time.Time              `json:"deadline"`
 	Employer ApplicationEmployerStub `json:"employer"`
 }
 
@@ -258,7 +258,7 @@ func (m ApplicationTrackerModel) List(ctx context.Context, db DBTX, userID, stat
 	defer rows.Close()
 
 	totalRecords := 0
-	applications := []ApplicationTrackerListItem{}
+	var applications []ApplicationTrackerListItem
 
 	for rows.Next() {
 		var app ApplicationTrackerListItem
