@@ -427,6 +427,7 @@ func (app *App) generateOpportunityImageHandler(w http.ResponseWriter, r *http.R
 	card := imagegen.OpportunityCard{
 		Title:        op.Title,
 		EmployerName: op.Employer.Name,
+		EmployerLogo: app.loadEmployerLogo(r.Context(), op.Employer.LogoURL),
 		Location:     op.Location,
 		Deadline:     op.Deadline,
 	}
