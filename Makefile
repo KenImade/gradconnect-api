@@ -1,4 +1,4 @@
-include .envrc.local
+-include .envrc.local
 
 ## help: print this help message
 .PHONY: help

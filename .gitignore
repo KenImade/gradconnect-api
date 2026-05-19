@@ -31,3 +31,4 @@ docs/
 *.test
 *.out
 .DS_Store
+.idea

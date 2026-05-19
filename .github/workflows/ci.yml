@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref. Saves CI minutes when pushing
+# rapid fixups to dev or a PR branch.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------
+  # Lint: vet + staticcheck + go mod tidy/verify.
+  # Mirrors `make audit` minus the test step.
+  # -------------------------------------------------------------------
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify module dependencies
+        run: |
+          go mod tidy
+          go mod verify
+          git diff --exit-code go.mod go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+          install-go: false
+
+  # -------------------------------------------------------------------
+  # Unit tests: everything outside test/integration. No database.
+  # Mirrors `make test`.
+  # -------------------------------------------------------------------
+  unit-test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        run: |
+          PKGS=$(go list ./... | grep -v test/integration)
+          go test -race -vet=off -coverprofile=coverage.out $PKGS
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage
+          path: coverage.out
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------
+  # Integration tests: real Postgres + Mailpit via GHA service containers,
+  # migrations applied, then the integration suite runs against them.
+  # -------------------------------------------------------------------
+  integration-test:
+    name: integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: gradconnect
+          POSTGRES_PASSWORD: gradconnect_dev_pw
+          POSTGRES_DB: gradconnect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gradconnect -d gradconnect_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      # newTestServer wires a real mailer pointed at localhost:1025.
+      # Most flows don't send mail, but registration does — Mailpit absorbs it silently.
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    env:
+      # Matches the env var helpers_test.go reads. Port is 5432 here (host
+      # network of the runner), not 5433 like local docker-compose.
+      GRADCONNECT_TEST_DB_DSN: postgres://gradconnect:gradconnect_dev_pw@localhost:5432/gradconnect_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install golang-migrate
+        run: |
+          curl -fsSL https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz \
+            | tar xz
+          sudo mv migrate /usr/local/bin/migrate
+          migrate -version
+
+      - name: Apply migrations
+        run: migrate -path ./migrations -database "$GRADCONNECT_TEST_DB_DSN" up
+
+      - name: Run integration tests
+        run: go test -v -race ./test/integration/ -timeout 120s

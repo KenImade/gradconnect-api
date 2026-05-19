@@ -50,7 +50,8 @@ func main() {
 	}
 	defer db.Close()
 
-	m, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
+	tlsMandatory := cfg.env == "production"
+	m, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender, tlsMandatory)
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
