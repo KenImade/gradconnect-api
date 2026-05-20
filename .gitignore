@@ -25,10 +25,6 @@ bin/
 .env
 .envrc
 .envrc.*
-cmd/api/docs/
 docs/
-*.exe
-*.test
-*.out
 .DS_Store
 .idea
