@@ -18,7 +18,7 @@ import (
 // on failure (which becomes part of the row_errors report).
 type rowProcessor func(ctx context.Context, tx pgx.Tx, row []string, colIdx map[string]int) error
 
-func (app *App) processImport(jobID string) error {
+func (app *App) processImport(ctx context.Context, jobID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 

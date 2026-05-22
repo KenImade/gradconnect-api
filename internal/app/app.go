@@ -38,21 +38,26 @@ type Config struct {
 // are methods on this type, keeping them co-located with their dependencies
 // without relying on global state.
 type App struct {
-	config   Config
-	db       *pgxpool.Pool
-	imagegen *imagegen.Generator
-	limiter  *ratelimit.MemoryLimiter
-	logger   *slog.Logger
-	mailer   *mailer.Mailer
-	models   data.Models
-	storage  storage.Storage
-	worker   *worker.Pool
-	wg       sync.WaitGroup
+	config            Config
+	db                *pgxpool.Pool
+	imagegen          *imagegen.Generator
+	limiter           *ratelimit.MemoryLimiter
+	logger            *slog.Logger
+	mailer            *mailer.Mailer
+	models            data.Models
+	storage           storage.Storage
+	worker            *worker.Pool
+	wg                sync.WaitGroup
+	sqsClient         worker.SQSClient // nil disables SES events polling
+	sesEventsQueueURL string           // empty disables SES events polling
 }
 
 // New constructs an App with all dependencies wired up. The worker pool is
 // not started here — Serve() starts it alongside the HTTP server so both
 // are torn down together on shutdown.
+//
+// Pass sqsClient=nil and sesEventsQueueURL="" to disable SES events polling
+// (typical for local dev and integration tests).
 func New(
 	cfg Config,
 	db *pgxpool.Pool,
@@ -60,15 +65,19 @@ func New(
 	logger *slog.Logger,
 	m *mailer.Mailer,
 	s storage.Storage,
+	sqsClient worker.SQSClient,
+	sesEventsQueueURL string,
 ) *App {
 	return &App{
-		config:   cfg,
-		db:       db,
-		imagegen: ig,
-		limiter:  ratelimit.NewMemoryLimiter(),
-		logger:   logger,
-		mailer:   m,
-		models:   data.NewModels(db),
-		storage:  s,
+		config:            cfg,
+		db:                db,
+		imagegen:          ig,
+		limiter:           ratelimit.NewMemoryLimiter(),
+		logger:            logger,
+		mailer:            m,
+		models:            data.NewModels(db),
+		storage:           s,
+		sqsClient:         sqsClient,
+		sesEventsQueueURL: sesEventsQueueURL,
 	}
 }
