@@ -76,7 +76,7 @@ func (app *App) processImport(jobID string) error {
 		}
 		processor = app.processEmployerRow
 	case "opportunities":
-		if err := requireColumns(colIdx, "employer_slug", "title", "slug", "type", "intake_year", "description", "location", "application_url"); err != nil {
+		if err := requireColumns(colIdx, "employer_id", "title", "slug", "type", "intake_year", "description", "location", "application_url"); err != nil {
 			_ = app.models.ImportJob.MarkFailed(ctx, app.db, jobID, len(rows), err.Error())
 			return err
 		}

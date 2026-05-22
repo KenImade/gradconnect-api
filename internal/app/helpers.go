@@ -176,3 +176,39 @@ func (app *App) inTransaction(ctx context.Context, fn func(pgx.Tx) error) error 
 
 	return tx.Commit(ctx)
 }
+
+// sendIfDeliverable looks up the recipient's deliverability status and only
+// invokes the mailer if the address is active. Returns nil for suppressed
+// addresses — from the worker's perspective, "we correctly chose not to send"
+// is success, not a failure to retry.
+//
+// Returns the mailer's error directly if a send is attempted.
+//
+// This is a defensive guard. The reminder cron also filters at enqueue time,
+// but tasks can sit in the queue long enough that an address's status
+// changes between enqueue and process. This check is the authoritative one.
+func (app *App) sendIfDeliverable(ctx context.Context, recipient, templateFile string, data any) error {
+	var status string
+	err := app.db.QueryRow(ctx, `
+        SELECT email_status FROM app_user WHERE email = $1
+    `, recipient).Scan(&status)
+
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		// No user with this address — most likely a system or admin
+		// recipient (notifications, internal alerts). Allow the send;
+		// the bounce subscriber will create the suppression record if
+		// needed.
+		return app.mailer.Send(recipient, templateFile, data)
+	case err != nil:
+		return fmt.Errorf("checking email status for %s: %w", recipient, err)
+	}
+
+	if status != "active" {
+		app.logger.Info("skipping send to suppressed address",
+			"recipient", recipient, "status", status, "template", templateFile)
+		return nil
+	}
+
+	return app.mailer.Send(recipient, templateFile, data)
+}

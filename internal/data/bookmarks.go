@@ -196,6 +196,7 @@ func (m BookmarkModel) FindDeadlineReminderRecipients(
 			o.deadline = $1::date
 			AND o.is_active = true
 			AND u.email_verified = true
+			AND u.email_status = 'active'
 		ORDER BY u.id, o.deadline, o.title
 	`
 

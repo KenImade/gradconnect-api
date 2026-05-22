@@ -25,11 +25,12 @@ type config struct {
 		maxIdleTime  time.Duration
 	}
 	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		sender   string
+		host             string
+		port             int
+		username         string
+		password         string
+		sender           string
+		configurationSet string
 	}
 	google struct {
 		clientID     string
@@ -110,6 +111,7 @@ func parseConfig() config {
 		os.Getenv("GRADCONNECT_COOKIE_DOMAIN"),
 		"Cookie domain (e.g. gradconnect.ng for production; leave empty for localhost dev)")
 
+	flag.StringVar(&cfg.smtp.configurationSet, "smtp-configuration-set", os.Getenv("GRADCONNECT_SMTP_CONFIGURATION_SET"), "SMTP configuration set")
 	flag.StringVar(&cfg.smtp.host, "smtp-host", defaultSMTPHost, "SMTP host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", defaultSMTPPort, "SMTP port")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GRADCONNECT_SMTP_USERNAME"), "SMTP username")

@@ -76,7 +76,14 @@ func newTestServer(t *testing.T) *testServer {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	m, err := mailer.New("localhost", 1025, "", "", "test@gradconnect.ng", false)
+	m, err := mailer.New(
+		"localhost",
+		1025,
+		"",
+		"",
+		"test@gradconnect.ng",
+		false,
+		"")
 	if err != nil {
 		t.Fatalf("mailer.New: %v", err)
 	}
