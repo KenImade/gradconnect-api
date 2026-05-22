@@ -12,6 +12,9 @@ import (
 	"api.gradconnect.com/internal/imagegen"
 	"api.gradconnect.com/internal/mailer"
 	"api.gradconnect.com/internal/storage"
+	"api.gradconnect.com/internal/worker"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/getsentry/sentry-go"
 )
 
@@ -84,7 +87,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := app.New(cfg.toAppConfig(), db, ig, logger, m, storageClient)
+	// SQS client for SES bounce/complaint event consumption.
+	// If the region or queue URL is unset, sqsClient is nil and the
+	// poller starts in disabled mode — useful for local development.
+	var sqsClient worker.SQSClient
+	if cfg.sesEvents.queueURL != "" && cfg.sesEvents.awsRegion != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(cfg.sesEvents.awsRegion),
+		)
+		if err != nil {
+			logger.Error("loading AWS config", "err", err)
+			os.Exit(1)
+		}
+		sqsClient = sqs.NewFromConfig(awsCfg)
+		logger.Info("ses events poller enabled", "queue", cfg.sesEvents.queueURL)
+	} else {
+		logger.Info("ses events poller disabled (no queue url or region configured)")
+	}
+
+	a := app.New(
+		cfg.toAppConfig(),
+		db,
+		ig,
+		logger,
+		m,
+		storageClient,
+		sqsClient,
+		cfg.sesEvents.queueURL,
+	)
 
 	if err = a.Serve(); err != nil {
 		logger.Error(err.Error())

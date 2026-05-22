@@ -24,6 +24,10 @@ type config struct {
 		maxIdleConns int
 		maxIdleTime  time.Duration
 	}
+	sesEvents struct {
+		queueURL  string
+		awsRegion string
+	}
 	smtp struct {
 		host             string
 		port             int
@@ -135,6 +139,13 @@ func parseConfig() config {
 	flag.StringVar(&cfg.r2.bucket, "r2-bucket", os.Getenv("GRADCONNECT_R2_BUCKET"), "Cloudflare R2 bucket name")
 	flag.StringVar(&cfg.r2.publicURL, "r2-public-url", os.Getenv("GRADCONNECT_R2_PUBLIC_URL"), "Cloudflare R2 public bucket URL")
 	flag.StringVar(&cfg.r2.endpoint, "r2-endpoint", os.Getenv("GRADCONNECT_R2_ENDPOINT"), "Cloudflare R2 S3 endpoint")
+
+	flag.StringVar(&cfg.sesEvents.queueURL, "ses-events-queue-url",
+		os.Getenv("GRADCONNECT_SES_EVENTS_QUEUE_URL"),
+		"SQS queue URL for SES bounce/complaint events")
+	flag.StringVar(&cfg.sesEvents.awsRegion, "aws-region",
+		os.Getenv("GRADCONNECT_AWS_REGION"),
+		"AWS region for SQS access (e.g. eu-west-1)")
 
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
