@@ -98,7 +98,7 @@ func newTestServer(t *testing.T) *testServer {
 	if err != nil {
 		t.Fatalf("imagegen.New: %v", err)
 	}
-	a := app.New(cfg, testDB, ig, logger, m, &noopStorage{})
+	a := app.New(cfg, testDB, ig, logger, m, &noopStorage{}, nil, "")
 	srv := httptest.NewServer(a.Routes())
 
 	t.Cleanup(func() {
