@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"api.gradconnect.com/internal/app"
+	"api.gradconnect.com/internal/imagegen"
 	"api.gradconnect.com/internal/mailer"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -75,7 +76,7 @@ func newTestServer(t *testing.T) *testServer {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	m, err := mailer.New("localhost", 1025, "", "", "test@gradconnect.ng")
+	m, err := mailer.New("localhost", 1025, "", "", "test@gradconnect.ng", false)
 	if err != nil {
 		t.Fatalf("mailer.New: %v", err)
 	}
@@ -86,7 +87,11 @@ func newTestServer(t *testing.T) *testServer {
 		BaseURL:     "http://localhost:4000",
 	}
 
-	a := app.New(cfg, testDB, logger, m, &noopStorage{})
+	ig, err := imagegen.New()
+	if err != nil {
+		t.Fatalf("imagegen.New: %v", err)
+	}
+	a := app.New(cfg, testDB, ig, logger, m, &noopStorage{})
 	srv := httptest.NewServer(a.Routes())
 
 	t.Cleanup(func() {
@@ -172,4 +177,4 @@ func (n *noopStorage) Download(_ context.Context, _ string) (io.ReadCloser, erro
 	return io.NopCloser(strings.NewReader("")), nil
 }
 func (n *noopStorage) Delete(_ context.Context, _ string) error { return nil }
-func (n *noopStorage) PublicURL(_ string) string                 { return "https://example.com/test.jpg" }
+func (n *noopStorage) PublicURL(_ string) string                { return "https://example.com/test.jpg" }

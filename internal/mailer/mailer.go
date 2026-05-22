@@ -19,10 +19,16 @@ type Mailer struct {
 	sender string
 }
 
-func New(host string, port int, username, password, sender string) (*Mailer, error) {
+func New(host string, port int, username, password, sender string, tlsMandatory bool) (*Mailer, error) {
+	tlsPolicy := mail.TLSOpportunistic
+	if tlsMandatory {
+		tlsPolicy = mail.TLSMandatory
+	}
+
 	opts := []mail.Option{
 		mail.WithPort(port),
 		mail.WithTimeout(10 * time.Second),
+		mail.WithTLSPolicy(tlsPolicy),
 	}
 
 	if username != "" || password != "" {

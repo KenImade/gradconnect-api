@@ -199,14 +199,6 @@ func newRequestID() string {
 	return hex.EncodeToString(b)
 }
 
-// requestIDFromContext returns the request ID for the current request, or empty.
-func requestIDFromContext(ctx context.Context) string {
-	if id, ok := ctx.Value(requestIDContextKey).(string); ok {
-		return id
-	}
-	return ""
-}
-
 // responseWriter wraps http.ResponseWriter to capture status code and byte
 // count for access logging.
 type responseWriter struct {

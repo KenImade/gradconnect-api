@@ -11,12 +11,3 @@ func normalizeJSONArray(raw json.RawMessage) json.RawMessage {
 	}
 	return raw
 }
-
-// normalizeJSONObject ensures a json.RawMessage representing an object is
-// never null or empty — both become {}.
-func normalizeJSONObject(raw json.RawMessage) json.RawMessage {
-	if len(raw) == 0 || string(raw) == "null" {
-		return json.RawMessage("{}")
-	}
-	return raw
-}

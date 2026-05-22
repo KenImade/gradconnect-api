@@ -18,8 +18,8 @@ type OpportunityStub struct {
 	Title         string       `json:"title"`
 	Slug          string       `json:"slug"`
 	Type          string       `json:"type"`
-	Deadline      time.Time    `json:"deadline"`
-	DaysRemaining int          `json:"days_remaining"`
+	Deadline      *time.Time   `json:"deadline"`
+	DaysRemaining *int         `json:"days_remaining"`
 	IsActive      bool         `json:"is_active"`
 	Employer      EmployerStub `json:"employer"`
 }
@@ -53,27 +53,9 @@ type DeadlineReminderBookmark struct {
 	Title           string
 	EmployerName    string
 	OpportunitySlug string
-	Deadline        time.Time
+	Deadline        *time.Time
 	DaysRemaining   int
 }
-
-func NewOpportunityStub(id, title, slug, oppType string, deadline time.Time, employer EmployerStub) OpportunityStub {
-	now := time.Now()
-	days := int(deadline.Sub(now).Hours() / 24)
-	if days < 0 {
-		days = 0
-	}
-	return OpportunityStub{
-		ID:            id,
-		Title:         title,
-		Slug:          slug,
-		Type:          oppType,
-		Deadline:      deadline,
-		DaysRemaining: days,
-		IsActive:      deadline.After(now),
-	}
-}
-
 type BookmarkModel struct {
 	DB *pgxpool.Pool
 }
@@ -133,13 +115,15 @@ func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string
         JOIN employer e ON e.id = o.employer_id
         WHERE b.user_id = $1
         ORDER BY %s %s, b.id ASC
-        LIMIT $2 OFFSET $3`, filters.sortColumn(), filters.sortDirection())
+        LIMIT $2 OFFSET $3
+	`, filters.sortColumn(), filters.sortDirection())
 
 	rows, err := db.Query(ctx, query, userID, filters.limit(), filters.offset())
 	if err != nil {
 		return nil, Metadata{}, err
 	}
 	defer rows.Close()
+	now := time.Now()
 
 	var totalRecords int
 	bookmarks := []Bookmark{}
@@ -161,13 +145,16 @@ func (m BookmarkModel) GetAllForUser(ctx context.Context, db DBTX, userID string
 
 		opp.Employer = emp
 		// Derived fields
-		now := time.Now()
-		days := int(opp.Deadline.Sub(now).Hours() / 24)
-		if days < 0 {
-			days = 0
+		if opp.Deadline != nil {
+			days := int(opp.Deadline.Sub(now).Hours() / 24)
+			if days < 0 {
+				days = 0
+			}
+			opp.DaysRemaining = &days
+			opp.IsActive = opp.Deadline.After(now)
+		} else {
+			opp.IsActive = true
 		}
-		opp.DaysRemaining = days
-		opp.IsActive = opp.Deadline.After(now)
 
 		b.Opportunity = opp
 		bookmarks = append(bookmarks, b)
@@ -209,7 +196,7 @@ func (m BookmarkModel) FindDeadlineReminderRecipients(
 			o.deadline = $1::date
 			AND o.is_active = true
 			AND u.email_verified = true
-		ORDER BY u.id, o.deadline ASC, o.title ASC
+		ORDER BY u.id, o.deadline, o.title
 	`
 
 	rows, err := db.Query(ctx, query, targetDate)
@@ -226,7 +213,7 @@ func (m BookmarkModel) FindDeadlineReminderRecipients(
 			userID               uuid.UUID
 			email, firstName     string
 			title, empName, slug string
-			deadline             time.Time
+			deadline             *time.Time
 		)
 
 		if err := rows.Scan(&userID, &email, &firstName, &title, &empName, &slug, &deadline); err != nil {

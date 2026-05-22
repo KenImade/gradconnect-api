@@ -52,7 +52,7 @@ func (m PermissionModel) AddForUser(ctx context.Context, tx pgx.Tx, userID strin
         SELECT $1, unnest($2::text[])
         ON CONFLICT DO NOTHING` // Prevents errors if double-assigned
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	_, err := tx.Exec(ctx, query, userID, codes)

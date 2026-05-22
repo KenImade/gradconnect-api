@@ -1,0 +1,3280 @@
+basePath: /api/v1
+definitions:
+  app.CleanupSessionsResponse:
+    properties:
+      deleted:
+        type: integer
+      message:
+        type: string
+    type: object
+  app.ErrorResponse:
+    description: The standard error response object returned by the API.
+    properties:
+      error:
+        description: Can be a string or a map of validation errors
+    type: object
+  app.RecalcRatingsResponse:
+    properties:
+      message:
+        type: string
+      recalculated:
+        type: integer
+    type: object
+  app.addBookmarkInput:
+    properties:
+      opportunity_id:
+        type: string
+    type: object
+  app.envelope:
+    additionalProperties: {}
+    type: object
+  data.AdminReview:
+    properties:
+      application_year:
+        type: integer
+      created_at:
+        type: string
+      degree_discipline:
+        type: string
+      difficulty_rating:
+        type: integer
+      employer_id:
+        type: string
+      experience_rating:
+        type: integer
+      id:
+        type: string
+      outcome:
+        type: string
+      programme_name:
+        type: string
+      stage_breakdown:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+      tips:
+        type: string
+      university:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  data.AnalyticsCounts:
+    properties:
+      applications_total:
+        type: integer
+      bookmarks_total:
+        type: integer
+      employers_total:
+        type: integer
+      employers_verified:
+        type: integer
+      opportunities_open:
+        type: integer
+      opportunities_total:
+        type: integer
+      reviews_pending_moderation:
+        type: integer
+      reviews_total:
+        type: integer
+      sessions_active:
+        type: integer
+      users_registered_last_7_days:
+        type: integer
+      users_total:
+        type: integer
+      users_verified:
+        type: integer
+    type: object
+  data.AnalyticsResponse:
+    properties:
+      counts:
+        $ref: '#/definitions/data.AnalyticsCounts'
+      recent_jobs:
+        items:
+          $ref: '#/definitions/data.RecentJob'
+        type: array
+      time_series:
+        $ref: '#/definitions/data.AnalyticsTimeSeries'
+      top_employers:
+        items:
+          $ref: '#/definitions/data.TopEmployer'
+        type: array
+      top_opportunities:
+        items:
+          $ref: '#/definitions/data.TopOpportunity'
+        type: array
+    type: object
+  data.AnalyticsTimeSeries:
+    properties:
+      bookmarks:
+        items:
+          $ref: '#/definitions/data.TimeSeriesPoint'
+        type: array
+      registrations:
+        items:
+          $ref: '#/definitions/data.TimeSeriesPoint'
+        type: array
+      reviews_submitted:
+        items:
+          $ref: '#/definitions/data.TimeSeriesPoint'
+        type: array
+    type: object
+  data.ApplicationStatus:
+    enum:
+    - interested
+    - applied
+    - assessment
+    - interview
+    - offer
+    - rejected
+    type: string
+    x-enum-varnames:
+    - StatusInterested
+    - StatusApplied
+    - StatusAssessment
+    - StatusInterview
+    - StatusOffer
+    - StatusRejected
+  data.Assessment:
+    properties:
+      aptitude_test_provider:
+        type: string
+      created_at:
+        type: string
+      employer:
+        $ref: '#/definitions/data.EmployerStub'
+      employer_id:
+        type: string
+      id:
+        type: string
+      interview_format:
+        type: string
+      prep_guide:
+        type: string
+      programme_type:
+        type: string
+      stages:
+        items:
+          type: integer
+        type: array
+      timeline_weeks:
+        type: integer
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  data.Bookmark:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      opportunity:
+        $ref: '#/definitions/data.OpportunityStub'
+    type: object
+  data.CreateApplicationInput:
+    properties:
+      notes:
+        type: string
+      opportunity_id:
+        type: string
+      status:
+        $ref: '#/definitions/data.ApplicationStatus'
+    type: object
+  data.CreateAssessmentInput:
+    properties:
+      aptitude_test_provider:
+        type: string
+      employer_id:
+        type: string
+      interview_format:
+        type: string
+      prep_guide:
+        type: string
+      programme_type:
+        type: string
+      stages:
+        items:
+          type: integer
+        type: array
+      timeline_weeks:
+        type: integer
+    type: object
+  data.CreateEmployerInput:
+    properties:
+      culture:
+        type: string
+      hq_location:
+        type: string
+      industry:
+        type: string
+      is_verified:
+        type: boolean
+      logo_url:
+        type: string
+      name:
+        type: string
+      offices:
+        items:
+          type: integer
+        type: array
+      overview:
+        type: string
+      size:
+        type: string
+      slug:
+        type: string
+      social_links:
+        items:
+          type: integer
+        type: array
+      website:
+        type: string
+    type: object
+  data.CreateOpportunityInput:
+    properties:
+      application_url:
+        type: string
+      deadline:
+        $ref: '#/definitions/data.Date'
+      description:
+        type: string
+      discipline_tags:
+        items:
+          type: string
+        type: array
+      employer_id:
+        type: string
+      intake_year:
+        type: integer
+      is_active:
+        type: boolean
+      location:
+        type: string
+      opens_at:
+        $ref: '#/definitions/data.Date'
+      requirements:
+        type: string
+      slug:
+        type: string
+      source_url:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  data.CreateReviewInput:
+    properties:
+      application_year:
+        type: integer
+      degree_discipline:
+        type: string
+      difficulty_rating:
+        type: integer
+      employer_id:
+        type: string
+      experience_rating:
+        type: integer
+      outcome:
+        type: string
+      programme_name:
+        type: string
+      stage_breakdown:
+        items:
+          type: integer
+        type: array
+      tips:
+        type: string
+      university:
+        type: string
+    type: object
+  data.CreateUserInput:
+    properties:
+      degree_discipline:
+        example: Computer Science
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      graduation_year:
+        example: 2025
+        type: integer
+      last_name:
+        example: Doe
+        type: string
+      password:
+        example: pa55word
+        type: string
+      preferences:
+        type: object
+      preferred_locations:
+        example:
+        - '["Lagos"'
+        - ' "Abuja"]'
+        items:
+          type: string
+        type: array
+      target_industries:
+        example:
+        - '["Finance"'
+        - ' "Tech"]'
+        items:
+          type: string
+        type: array
+    type: object
+  data.CurrentUserResponse:
+    properties:
+      auth_provider:
+        type: string
+      created_at:
+        type: string
+      degree_discipline:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      first_name:
+        type: string
+      graduation_year:
+        type: integer
+      id:
+        type: string
+      last_name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      preferences:
+        items:
+          type: integer
+        type: array
+      preferred_locations:
+        items:
+          type: string
+        type: array
+      target_industries:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  data.Date:
+    properties:
+      time.Time:
+        type: string
+    type: object
+  data.DeadlineReminderResponse:
+    properties:
+      enqueued:
+        type: integer
+      message:
+        type: string
+    type: object
+  data.Employer:
+    properties:
+      avg_difficulty_rating:
+        type: number
+      avg_experience_rating:
+        type: number
+      created_at:
+        type: string
+      culture:
+        type: string
+      hq_location:
+        type: string
+      id:
+        type: string
+      industry:
+        type: string
+      is_verified:
+        type: boolean
+      logo_url:
+        type: string
+      name:
+        type: string
+      offices:
+        items:
+          type: integer
+        type: array
+      overview:
+        type: string
+      review_count:
+        type: integer
+      size:
+        type: string
+      slug:
+        type: string
+      social_links:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+      version:
+        type: integer
+      website:
+        type: string
+    type: object
+  data.EmployerStub:
+    properties:
+      id:
+        type: string
+      industry:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  data.ForgotPasswordInput:
+    properties:
+      email:
+        type: string
+    type: object
+  data.GoogleAuthInput:
+    properties:
+      code:
+        type: string
+    type: object
+  data.ImportJob:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: string
+      import_type:
+        type: string
+      row_errors:
+        items:
+          $ref: '#/definitions/data.ImportJobRowError'
+        type: array
+      rows_failed:
+        type: integer
+      rows_imported:
+        type: integer
+      rows_total:
+        type: integer
+      status:
+        type: string
+    type: object
+  data.ImportJobRowError:
+    properties:
+      message:
+        type: string
+      raw_data:
+        type: string
+      row_number:
+        type: integer
+    type: object
+  data.Metadata:
+    properties:
+      current_page:
+        type: integer
+      first_page:
+        type: integer
+      last_page:
+        type: integer
+      page_size:
+        type: integer
+      total_records:
+        type: integer
+    type: object
+  data.ModerateReviewInput:
+    properties:
+      status:
+        type: string
+    type: object
+  data.Opportunity:
+    properties:
+      application_url:
+        type: string
+      created_at:
+        type: string
+      days_remaining:
+        description: computed
+        type: integer
+      deadline:
+        $ref: '#/definitions/data.Date'
+      description:
+        type: string
+      discipline_tags:
+        items:
+          type: string
+        type: array
+      employer:
+        $ref: '#/definitions/data.EmployerStub'
+      id:
+        type: string
+      intake_year:
+        type: integer
+      is_active:
+        type: boolean
+      location:
+        type: string
+      opens_at:
+        $ref: '#/definitions/data.Date'
+      requirements:
+        type: string
+      slug:
+        type: string
+      source_url:
+        type: string
+      status:
+        description: computed
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  data.OpportunityStub:
+    properties:
+      days_remaining:
+        type: integer
+      deadline:
+        type: string
+      employer:
+        $ref: '#/definitions/data.EmployerStub'
+      id:
+        type: string
+      is_active:
+        type: boolean
+      slug:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  data.RecentJob:
+    properties:
+      completed_at:
+        type: string
+      job_name:
+        type: string
+      last_run_at:
+        type: string
+      last_run_enqueued:
+        type: integer
+      last_run_status:
+        type: string
+    type: object
+  data.ResetPasswordInput:
+    properties:
+      new_password:
+        type: string
+      token:
+        type: string
+    type: object
+  data.Review:
+    properties:
+      application_year:
+        type: integer
+      created_at:
+        type: string
+      degree_discipline:
+        type: string
+      difficulty_rating:
+        type: integer
+      employer_id:
+        type: string
+      experience_rating:
+        type: integer
+      id:
+        type: string
+      outcome:
+        type: string
+      programme_name:
+        type: string
+      stage_breakdown:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+      tips:
+        type: string
+      university:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  data.TimeSeriesPoint:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+    type: object
+  data.TopEmployer:
+    properties:
+      bookmark_count:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      opportunity_count:
+        type: integer
+      review_count:
+        type: integer
+      slug:
+        type: string
+    type: object
+  data.TopOpportunity:
+    properties:
+      bookmark_count:
+        type: integer
+      deadline:
+        type: string
+      employer_name:
+        type: string
+      id:
+        type: string
+      slug:
+        type: string
+      title:
+        type: string
+    type: object
+  data.UpdateApplicationInput:
+    properties:
+      notes:
+        type: string
+      status:
+        $ref: '#/definitions/data.ApplicationStatus'
+    type: object
+  data.UpdateAssessmentInput:
+    properties:
+      aptitude_test_provider:
+        type: string
+      interview_format:
+        type: string
+      prep_guide:
+        type: string
+      programme_type:
+        type: string
+      stages:
+        items:
+          type: integer
+        type: array
+      timeline_weeks:
+        type: integer
+    type: object
+  data.UpdateEmployerInput:
+    properties:
+      culture:
+        type: string
+      hq_location:
+        type: string
+      industry:
+        type: string
+      is_verified:
+        type: boolean
+      logo_url:
+        type: string
+      name:
+        type: string
+      offices:
+        items:
+          type: integer
+        type: array
+      overview:
+        type: string
+      size:
+        type: string
+      slug:
+        type: string
+      social_links:
+        items:
+          type: integer
+        type: array
+      website:
+        type: string
+    type: object
+  data.UpdateOpportunityInput:
+    properties:
+      application_url:
+        type: string
+      deadline:
+        $ref: '#/definitions/data.Date'
+      description:
+        type: string
+      discipline_tags:
+        items:
+          type: string
+        type: array
+      employer_id:
+        type: string
+      intake_year:
+        type: integer
+      is_active:
+        type: boolean
+      location:
+        type: string
+      opens_at:
+        $ref: '#/definitions/data.Date'
+      requirements:
+        type: string
+      slug:
+        type: string
+      source_url:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  data.UpdateReviewInput:
+    properties:
+      application_year:
+        type: integer
+      degree_discipline:
+        type: string
+      difficulty_rating:
+        type: integer
+      experience_rating:
+        type: integer
+      outcome:
+        type: string
+      programme_name:
+        type: string
+      stage_breakdown:
+        items:
+          type: integer
+        type: array
+      tips:
+        type: string
+      university:
+        type: string
+    type: object
+  data.UpdateUserInput:
+    properties:
+      degree_discipline:
+        type: string
+      first_name:
+        type: string
+      graduation_year:
+        type: integer
+      last_name:
+        type: string
+      preferences:
+        items:
+          type: integer
+        type: array
+      preferred_locations:
+        items:
+          type: string
+        type: array
+      target_industries:
+        items:
+          type: string
+        type: array
+    type: object
+  data.User:
+    properties:
+      auth_provider:
+        type: string
+      created_at:
+        type: string
+      degree_discipline:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      first_name:
+        type: string
+      graduation_year:
+        type: integer
+      id:
+        type: string
+      last_name:
+        type: string
+      preferences:
+        items:
+          type: integer
+        type: array
+      preferred_locations:
+        items:
+          type: string
+        type: array
+      target_industries:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+host: localhost:4000
+info:
+  contact: {}
+  description: Nigeria's Graduate Career Intelligence Platform API
+  title: GradConnect API
+  version: "1.0"
+paths:
+  /admin/analytics:
+    get:
+      description: |-
+        Returns aggregated counts, 30-day time-series data, top employers,
+        top opportunities, and recent job runs in a single response.
+        Requires admin:full permission.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.AnalyticsResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Admin dashboard analytics
+      tags:
+      - Admin
+  /admin/assessments:
+    get:
+      description: List all assessment profiles across all employers, with employer
+        stub embedded.
+      parameters:
+      - description: Search programme type or employer name (case-insensitive substring)
+        in: query
+        name: q
+        type: string
+      - description: Filter to a single employer (UUID)
+        in: query
+        name: employer_id
+        type: string
+      - default: -updated_at
+        description: Sort field (prefix with - for descending)
+        enum:
+        - programme_type
+        - created_at
+        - updated_at
+        - -programme_type
+        - -created_at
+        - -updated_at
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Items per page (max 50)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Assessment'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      security:
+      - SessionCookie: []
+      summary: List assessments (admin)
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: Creates an assessment profile for an employer. Requires admin:full
+        permission.
+      parameters:
+      - description: Assessment details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateAssessmentInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Assessment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Employer not found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Create an assessment profile (admin only)
+      tags:
+      - Admin
+  /admin/assessments/{id}:
+    get:
+      description: Fetch a single assessment by UUID with employer stub embedded.
+      parameters:
+      - description: Assessment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Assessment'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      security:
+      - SessionCookie: []
+      summary: Get an assessment (admin)
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      description: Updates an assessment profile. Requires admin:full permission and
+        current version.
+      parameters:
+      - description: Assessment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateAssessmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Assessment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Version mismatch
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update an assessment profile (admin only)
+      tags:
+      - Admin
+  /admin/employers:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new employer profile. Requires admin:full permission.
+      parameters:
+      - description: Employer details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateEmployerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Employer'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Create a new employer (admin only)
+      tags:
+      - Admin
+  /admin/employers/{id}:
+    delete:
+      description: Deletes an employer and cascades to related records. Requires admin:full
+        permission.
+      parameters:
+      - description: Employer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Delete an employer (admin only)
+      tags:
+      - Admin
+    get:
+      description: Get a full employer hub profile by id
+      parameters:
+      - description: Employer id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Employer'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: Show employer
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing employer profile. Requires admin:full permission.
+      parameters:
+      - description: Employer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateEmployerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Employer'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update an employer (admin only)
+      tags:
+      - Admin
+  /admin/import:
+    get:
+      description: Returns the most recent import jobs, newest first. Requires admin:full
+        permission.
+      parameters:
+      - description: Max results (1-100, default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.ImportJob'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: List recent import jobs
+      tags:
+      - Admin
+    post:
+      consumes:
+      - multipart/form-data
+      description: Accepts a CSV file and queues an async import job. Requires admin:full
+        permission.
+      parameters:
+      - description: Import type
+        enum:
+        - employers
+        - opportunities
+        - assessments
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: CSV file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.ImportJob'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "413":
+          description: File too large
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Start a bulk data import (admin only)
+      tags:
+      - Admin
+  /admin/import/{id}:
+    get:
+      description: Returns the current status and results of an import job. Requires
+        admin:full permission.
+      parameters:
+      - description: Import job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.ImportJob'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Get import job status (admin only)
+      tags:
+      - Admin
+  /admin/jobs/cleanup-sessions:
+    post:
+      description: |-
+        Deletes all expired sessions from the database. Returns the count deleted.
+        Safe to run multiple times. Requires admin:full permission.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.CleanupSessionsResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Trigger expired session cleanup
+      tags:
+      - Admin
+  /admin/jobs/deadline-reminders:
+    post:
+      description: |-
+        Manually fires the deadline reminder enqueue job. Useful for testing in staging,
+        recovery from a missed cron, or admin-initiated re-runs. Returns the count of
+        reminder jobs queued for execution. Requires admin:full permission.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.DeadlineReminderResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Trigger the deadline reminder enqueue job
+      tags:
+      - Admin
+  /admin/jobs/recalculate-ratings:
+    post:
+      description: |-
+        Recomputes cached avg_difficulty_rating, avg_experience_rating, and
+        review_count for every employer. Returns the number of employers processed.
+        Requires admin:full permission.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.RecalcRatingsResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Trigger employer ratings recalculation
+      tags:
+      - Admin
+  /admin/opportunities:
+    get:
+      description: |-
+        List all graduate opportunities including closed and withdrawn.
+        Admin-only ledger view of every record on the platform regardless of status.
+      parameters:
+      - description: Keyword search across title, employer name, location, discipline,
+          industry, requirements, and description
+        in: query
+        name: q
+        type: string
+      - description: Filter by type
+        enum:
+        - graduate_trainee
+        - internship
+        - nysc
+        - industrial_attachment
+        in: query
+        name: type
+        type: string
+      - default: all
+        description: Filter by computed status. Admins may request any status, including
+          closed and withdrawn, or 'all' to see every status.
+        enum:
+        - all
+        - open
+        - upcoming
+        - closed
+        - withdrawn
+        in: query
+        name: status
+        type: string
+      - description: Filter by programme intake year
+        in: query
+        name: intake_year
+        type: integer
+      - description: Filter by employer's industry (exact match)
+        in: query
+        name: industry
+        type: string
+      - description: Filter by location (case-insensitive substring match)
+        in: query
+        name: location
+        type: string
+      - description: Filter by discipline tag (array contains)
+        in: query
+        name: discipline
+        type: string
+      - description: Show opportunities with deadline before this date (YYYY-MM-DD)
+        in: query
+        name: deadline_before
+        type: string
+      - description: Show opportunities with deadline after this date (YYYY-MM-DD)
+        in: query
+        name: deadline_after
+        type: string
+      - default: -created_at
+        description: Sort field (prefix with - for descending). Defaults to newest-first
+          for admin moderation workflows.
+        enum:
+        - deadline
+        - opens_at
+        - created_at
+        - title
+        - -deadline
+        - -opens_at
+        - -created_at
+        - -title
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Items per page (max 50). Higher default than the public endpoint
+          for bulk admin operations.
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Opportunity'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: string
+              type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      security:
+      - SessionCookie: []
+      summary: List opportunities (admin)
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: Creates a new opportunity listing. Requires admin:full permission.
+      parameters:
+      - description: Opportunity details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateOpportunityInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Opportunity'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Employer not found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Slug already exists
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Create a new opportunity (admin only)
+      tags:
+      - Admin
+  /admin/opportunities/{id}:
+    delete:
+      description: Deletes an opportunity. Requires admin:full permission.
+      parameters:
+      - description: Opportunity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Delete an opportunity (admin only)
+      tags:
+      - Admin
+    get:
+      description: Get a full opportunity profile by id
+      parameters:
+      - description: Opportunity id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Opportunity'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: Show opportunity
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing opportunity. Requires admin:full permission.
+      parameters:
+      - description: Opportunity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateOpportunityInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Opportunity'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update an opportunity (admin only)
+      tags:
+      - Admin
+  /admin/opportunities/{id}/image:
+    get:
+      description: |-
+        Generates a PNG image of a job opportunity for Social Media posts.
+        Safe to run multiple times. Requires admin:full permission.
+      parameters:
+      - description: Opportunity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: twitter
+        description: Image format
+        enum:
+        - twitter
+        - instagram_square
+        - instagram_portrait
+        - story
+        in: query
+        name: format
+        type: string
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: PNG image of the opportunity card
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Generate social media post for opportunity
+      tags:
+      - Admin
+  /admin/reviews:
+    get:
+      description: Returns reviews filtered by status for moderation workflow. Requires
+        admin:full permission.
+      parameters:
+      - default: pending
+        description: Filter by status
+        enum:
+        - pending
+        - approved
+        - rejected
+        in: query
+        name: status
+        type: string
+      - default: created_at
+        description: Sort field
+        enum:
+        - created_at
+        - -created_at
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.AdminReview'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: List reviews in the moderation queue (admin only)
+      tags:
+      - Admin
+  /admin/reviews/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Approves or rejects a pending review. Requires admin:full permission.
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Moderation decision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.ModerateReviewInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Review'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Moderate a community review (admin only)
+      tags:
+      - Admin
+  /admin/uploads/logo:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Uploads an image to object storage and returns its public URL.
+        Accepts PNG, JPEG, WebP, and SVG up to 2MB. Requires admin:full permission.
+      parameters:
+      - description: Image file (PNG, JPEG, WebP, SVG)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  properties:
+                    url:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Upload an employer logo (admin only)
+      tags:
+      - Admin
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Sends a password reset email if an account with the given email
+        exists. Always returns 200 to prevent email enumeration.
+      parameters:
+      - description: Email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.ForgotPasswordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Request a password reset email
+      tags:
+      - Auth
+  /auth/google:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a Google OAuth authorization code for a session. Creates
+        a new user if one doesn't exist.
+      parameters:
+      - description: Google OAuth authorization code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.GoogleAuthInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Existing user logged in
+          schema:
+            $ref: '#/definitions/data.User'
+        "201":
+          description: New user created
+          schema:
+            $ref: '#/definitions/data.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Authenticate with Google OAuth
+      tags:
+      - Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Validate credentials, create a new session, and set a session cookie.
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Authenticate a user
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      description: Delete the current session and clear the session cookie.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Log out the current user
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account, assign default permissions, and queue
+        an activation email.
+      parameters:
+      - description: User Registration Details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Deletes any existing verification token for the authenticated user
+        and queues a new verification email.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Email already verified
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Resend email verification link
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Validates a password reset token and sets a new password. Revokes
+        all existing sessions.
+      parameters:
+      - description: Reset token and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.ResetPasswordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Invalid or expired token
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Reset password using a reset token
+      tags:
+      - Auth
+  /auth/verify-email:
+    get:
+      consumes:
+      - application/json
+      description: Verify a user's email address using the activation token sent by
+        email.
+      parameters:
+      - description: Activation token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to frontend failure page on invalid/expired token
+        "422":
+          description: Missing or malformed token
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Activate a user account
+      tags:
+      - Auth
+  /employers:
+    get:
+      consumes:
+      - application/json
+      description: List employer hub profiles with filtering, search, and pagination
+      parameters:
+      - description: Full-text search across name, overview, industry, and location
+        in: query
+        name: q
+        type: string
+      - description: Filter by industry (exact match)
+        in: query
+        name: industry
+        type: string
+      - description: Filter by verified status
+        in: query
+        name: is_verified
+        type: boolean
+      - default: name
+        description: 'Sort field: name, created_at (prefix with - for descending)'
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 100)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Employer'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: List employers
+      tags:
+      - Employers
+  /employers/{slug}:
+    get:
+      description: Get a full employer hub profile by slug
+      parameters:
+      - description: Employer slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Employer'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: Show employer
+      tags:
+      - Employers
+  /employers/{slug}/assessments:
+    get:
+      description: List assessment profiles for an employer
+      parameters:
+      - description: Employer slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: programme_type
+        description: 'Sort field: programme_type, updated_at'
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Assessment'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: List assessments
+      tags:
+      - Assessments
+  /employers/{slug}/reviews:
+    get:
+      description: List approved community reviews for an employer
+      parameters:
+      - description: Employer slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: -created_at
+        description: Sort field
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Review'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: List reviews
+      tags:
+      - Reviews
+  /healthcheck:
+    get:
+      description: Returns API status and environment info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Healthcheck
+      tags:
+      - System
+  /me:
+    get:
+      description: Returns the user associated with the current session, including
+        their permissions.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.CurrentUserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Get the currently authenticated user
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Update the authenticated user's profile fields. Email cannot be
+        changed.
+      parameters:
+      - description: Profile fields to update
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Edit conflict
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update the current user's profile
+      tags:
+      - Users
+  /me/applications:
+    get:
+      description: Returns the authenticated user's tracked applications with pagination
+        and optional status filter.
+      parameters:
+      - description: Filter by status
+        enum:
+        - interested
+        - applied
+        - assessment
+        - interview
+        - offer
+        - rejected
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort field
+        enum:
+        - updated_at
+        - -updated_at
+        - created_at
+        - -created_at
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: List the current user's application tracker entries
+      tags:
+      - ApplicationTrackers
+    post:
+      consumes:
+      - application/json
+      description: Creates a new application tracker entry for the authenticated user.
+      parameters:
+      - description: Application to track
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateApplicationInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Already tracking this opportunity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Add an opportunity to tracked applications
+      tags:
+      - ApplicationTrackers
+  /me/applications/{id}:
+    delete:
+      description: Delete an application from the tracker belonging to the authenticated
+        user.
+      parameters:
+      - description: Tracker ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Remove an application from the tracker
+      tags:
+      - ApplicationTrackers
+    patch:
+      consumes:
+      - application/json
+      description: Updates the status and/or notes of an existing application tracker
+        entry.
+      parameters:
+      - description: Application tracker ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateApplicationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update a tracked application
+      tags:
+      - ApplicationTrackers
+  /me/bookmarks:
+    get:
+      description: Returns the authenticated user's bookmarked opportunities with
+        pagination.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort field
+        enum:
+        - created_at
+        - deadline
+        - -created_at
+        - -deadline
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: List the current user's bookmarks
+      tags:
+      - Bookmarks
+    post:
+      consumes:
+      - application/json
+      description: Add an opportunity to the authenticated user's bookmarks.
+      parameters:
+      - description: Opportunity to bookmark
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.addBookmarkInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Bookmark'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Already bookmarked
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Bookmark an opportunity
+      tags:
+      - Bookmarks
+  /me/bookmarks/{id}:
+    delete:
+      description: Delete a bookmark belonging to the authenticated user.
+      parameters:
+      - description: Bookmark ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Remove a bookmark
+      tags:
+      - Bookmarks
+  /opportunities:
+    get:
+      description: |-
+        List graduate opportunities visible to the public — open and upcoming only.
+        Closed and withdrawn listings are hidden; admins should use /admin/opportunities for the full ledger view.
+      parameters:
+      - description: Keyword search across title, employer name, location, discipline,
+          industry, requirements, and description
+        in: query
+        name: q
+        type: string
+      - description: Filter by type
+        enum:
+        - graduate_trainee
+        - internship
+        - nysc
+        - industrial_attachment
+        in: query
+        name: type
+        type: string
+      - default: open_or_upcoming
+        description: Filter by computed status. Public consumers may only request
+          open or upcoming listings (or both via 'open_or_upcoming').
+        enum:
+        - open
+        - upcoming
+        - open_or_upcoming
+        in: query
+        name: status
+        type: string
+      - description: Filter by programme intake year
+        in: query
+        name: intake_year
+        type: integer
+      - description: Filter by employer's industry (exact match)
+        in: query
+        name: industry
+        type: string
+      - description: Filter by location (case-insensitive substring match)
+        in: query
+        name: location
+        type: string
+      - description: Filter by discipline tag (array contains)
+        in: query
+        name: discipline
+        type: string
+      - description: Show opportunities with deadline before this date (YYYY-MM-DD)
+        in: query
+        name: deadline_before
+        type: string
+      - description: Show opportunities with deadline after this date (YYYY-MM-DD)
+        in: query
+        name: deadline_after
+        type: string
+      - default: deadline
+        description: Sort field (prefix with - for descending)
+        enum:
+        - deadline
+        - opens_at
+        - created_at
+        - title
+        - -deadline
+        - -opens_at
+        - -created_at
+        - -title
+        in: query
+        name: sort
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/data.Opportunity'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/data.Metadata'
+              type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: List opportunities (public)
+      tags:
+      - Opportunities
+  /opportunities/{slug}:
+    get:
+      description: Get a full opportunity profile by slug
+      parameters:
+      - description: Opportunity slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/data.Opportunity'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.envelope'
+            - properties:
+                error:
+                  type: object
+              type: object
+      summary: Show opportunity
+      tags:
+      - Opportunities
+  /reviews:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new review in 'pending' status for moderation.
+      parameters:
+      - description: Review details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.CreateReviewInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Employer not found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: Review already exists
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Submit a review for an employer's graduate programme
+      tags:
+      - Reviews
+  /reviews/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates a review belonging to the authenticated user. Edited reviews
+        revert to 'pending' status for re-moderation.
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.UpdateReviewInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Update an existing review
+      tags:
+      - Reviews
+securityDefinitions:
+  SessionCookie:
+    in: cookie
+    name: session_id
+    type: apiKey
+swagger: "2.0"
