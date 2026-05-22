@@ -15,11 +15,12 @@ import (
 var templateFS embed.FS
 
 type Mailer struct {
-	client *mail.Client
-	sender string
+	client           *mail.Client
+	sender           string
+	configurationSet string
 }
 
-func New(host string, port int, username, password, sender string, tlsMandatory bool) (*Mailer, error) {
+func New(host string, port int, username, password, sender string, tlsMandatory bool, configurationSet string) (*Mailer, error) {
 	tlsPolicy := mail.TLSOpportunistic
 	if tlsMandatory {
 		tlsPolicy = mail.TLSMandatory
@@ -47,8 +48,9 @@ func New(host string, port int, username, password, sender string, tlsMandatory 
 	}
 
 	mailer := &Mailer{
-		client: client,
-		sender: sender,
+		client:           client,
+		sender:           sender,
+		configurationSet: configurationSet,
 	}
 
 	return mailer, nil
@@ -93,6 +95,10 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 	err = msg.From(m.sender)
 	if err != nil {
 		return err
+	}
+
+	if m.configurationSet != "" {
+		msg.SetGenHeader("X-SES-CONFIGURATION-SET", m.configurationSet)
 	}
 
 	msg.Subject(subject.String())

@@ -380,3 +380,22 @@ func (m UserModel) UpdatePassword(ctx context.Context, db DBTX, userID string, h
 func HashPassword(plaintext string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(plaintext), 12)
 }
+
+// MarkEmailStatus updates the deliverability status of an email address.
+// Used by the SES bounce/complaint consumer. Idempotent — repeated calls
+// with the same status are no-ops (other than refreshing the timestamp).
+//
+// status must be one of: "active", "bounced", "complained".
+//
+// Returns nil even if no row matches the email. SES events may reference
+// addresses that no longer exist as users (account deleted, email changed),
+// and that's not a failure from the consumer's perspective.
+func (m UserModel) MarkEmailStatus(ctx context.Context, db DBTX, email, status string) error {
+	const query = `
+        UPDATE app_user
+        SET email_status = $1, email_status_updated_at = now()
+        WHERE email = $2`
+
+	_, err := db.Exec(ctx, query, status, email)
+	return err
+}

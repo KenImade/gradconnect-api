@@ -31,7 +31,7 @@ func (app *App) buildWorkerPool() *worker.Pool {
 // --- Job handlers ---
 
 func (app *App) handleEmailVerify(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		BaseURL         string `json:"base_url"`
 		Email           string `json:"user_email"`
 		FirstName       string `json:"first_name"`
@@ -40,22 +40,22 @@ func (app *App) handleEmailVerify(ctx context.Context, _ string, payload []byte)
 	if err != nil {
 		return err
 	}
-	return app.mailer.Send(data.Email, "email_verify.tmpl", data)
+	return app.sendIfDeliverable(ctx, load.Email, "email_verify.tmpl", load)
 }
 
 func (app *App) handleEmailWelcome(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		Email     string `json:"user_email"`
 		FirstName string `json:"first_name"`
 	}](payload)
 	if err != nil {
 		return err
 	}
-	return app.mailer.Send(data.Email, "user_welcome.tmpl", data)
+	return app.sendIfDeliverable(ctx, load.Email, "user_welcome.tmpl", load)
 }
 
 func (app *App) handleEmailPasswordReset(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		FrontendURL string `json:"frontend_url"`
 		Email       string `json:"user_email"`
 		FirstName   string `json:"first_name"`
@@ -64,31 +64,31 @@ func (app *App) handleEmailPasswordReset(ctx context.Context, _ string, payload 
 	if err != nil {
 		return err
 	}
-	return app.mailer.Send(data.Email, "password_reset.tmpl", data)
+	return app.sendIfDeliverable(ctx, load.Email, "password_reset.tmpl", load)
 }
 
 func (app *App) handleAdminImport(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		ImportJobID string `json:"import_job_id"`
 	}](payload)
 	if err != nil {
 		return err
 	}
-	return app.processImport(data.ImportJobID)
+	return app.processImport(load.ImportJobID)
 }
 
 func (app *App) handleEmployerRecalcRatings(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		EmployerID string `json:"employer_id"`
 	}](payload)
 	if err != nil {
 		return err
 	}
-	return app.models.Employers.RecalculateRatings(ctx, app.db, data.EmployerID)
+	return app.models.Employers.RecalculateRatings(ctx, app.db, load.EmployerID)
 }
 
 func (app *App) handleEmailDeadlineReminder(ctx context.Context, _ string, payload []byte) error {
-	data, err := worker.UnmarshalPayload[struct {
+	load, err := worker.UnmarshalPayload[struct {
 		Recipient   string                          `json:"recipient"`
 		FirstName   string                          `json:"first_name"`
 		BaseURL     string                          `json:"base_url"`
@@ -98,5 +98,5 @@ func (app *App) handleEmailDeadlineReminder(ctx context.Context, _ string, paylo
 	if err != nil {
 		return err
 	}
-	return app.mailer.Send(data.Recipient, "deadline_reminder.tmpl", data)
+	return app.sendIfDeliverable(ctx, load.Recipient, "deadline_reminder.tmpl", load)
 }
