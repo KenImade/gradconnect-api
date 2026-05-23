@@ -82,6 +82,7 @@ func newTestServer(t *testing.T) *testServer {
 		"",
 		"",
 		"test@gradconnect.ng",
+		"support-test@gradconnect.ng",
 		false,
 		"")
 	if err != nil {

@@ -33,6 +33,7 @@ type config struct {
 		port             int
 		username         string
 		password         string
+		replyTo          string
 		sender           string
 		configurationSet string
 	}
@@ -120,6 +121,7 @@ func parseConfig() config {
 	flag.IntVar(&cfg.smtp.port, "smtp-port", defaultSMTPPort, "SMTP port")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("GRADCONNECT_SMTP_USERNAME"), "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("GRADCONNECT_SMTP_PASSWORD"), "SMTP password")
+	flag.StringVar(&cfg.smtp.replyTo, "smtp-reply-to", os.Getenv("GRADCONNECT_SMTP_REPLY_TO"), "SMTP reply to")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", os.Getenv("GRADCONNECT_SMTP_SENDER"), "SMTP sender")
 
 	flag.StringVar(&cfg.frontendURL, "frontend-url", os.Getenv("GRADCONNECT_FRONTEND_URL"), "Frontend URL")

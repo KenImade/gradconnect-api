@@ -60,6 +60,7 @@ func main() {
 		cfg.smtp.username,
 		cfg.smtp.password,
 		cfg.smtp.sender,
+		cfg.smtp.replyTo,
 		tlsMandatory,
 		cfg.smtp.configurationSet)
 	if err != nil {
