@@ -50,6 +50,11 @@ type sesEventDiscriminator struct {
 // redelivered. After maxReceiveCount redeliveries (configured on the
 // queue), it moves to the DLQ.
 func (p *Pool) PollSESEvents(ctx context.Context, sqsClient SQSClient, queueURL string) {
+	if sqsClient == nil || queueURL == "" {
+		p.logger.Info("ses events poller disabled (no sqs client or queue url)")
+		return
+	}
+	
 	p.logger.Info("ses events poller started", "queue", queueURL)
 	defer p.logger.Info("ses events poller stopped")
 
