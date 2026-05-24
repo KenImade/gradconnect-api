@@ -126,7 +126,7 @@ func (app *App) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // loginUserHandler godoc
 // @Summary      Authenticate a user
-// @Description  Validate credentials, create a new session, and set a session cookie.
+// @Description  Validate credentials, create a new session, and set a session cookie. If the account is soft-deleted but still within the 30-day grace period, signing in restores it.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
@@ -160,7 +160,8 @@ func (app *App) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := app.models.Users.GetByEmail(r.Context(), app.db, input.Email)
+	// Lookup includes soft-deleted users so they can recover by signing in.
+	user, err := app.models.Users.GetByEmailIncludingDeleted(r.Context(), app.db, input.Email)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -186,7 +187,31 @@ func (app *App) loginUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
-	session, err := app.models.Sessions.Create(r.Context(), app.db, user.ID, ip, r.UserAgent())
+	// Restore + create session atomically. If restoration is needed, do
+	// it inside the same transaction so we never end up with a session
+	// pointing at a still-deleted user (or vice versa).
+	var session *data.Session
+	wasDeleted := user.DeletedAt != nil
+	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		if wasDeleted {
+			if err := app.models.Users.Restore(r.Context(), tx, user.ID); err != nil {
+				return err
+			}
+			app.logger.Info("user account restored from soft-delete",
+				"user_id", user.ID, "email", user.Email)
+
+			taskPayload := map[string]any{
+				"user_email": user.Email,
+				"first_name": user.FirstName,
+			}
+			if err := app.models.Tasks.Insert(r.Context(), tx, "email:account_restored", taskPayload); err != nil {
+				return err
+			}
+		}
+		var err error
+		session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
+		return err
+	})
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -404,14 +429,17 @@ func (app *App) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 	var session *data.Session
 	isNewUser := false
 
-	// Check if user exists
-	user, err = app.models.Users.GetByEmail(r.Context(), app.db, email)
+	user, err = app.models.Users.GetByEmailIncludingDeleted(r.Context(), app.db, email)
 	if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
 	if errors.Is(err, data.ErrRecordNotFound) {
+		// NEW USER PATH.
+		// Create the user, assign default permissions, queue welcome
+		// email, create session — all in one transaction so a partial
+		// failure doesn't leave a half-built account.
 		isNewUser = true
 
 		user = &data.User{
@@ -446,7 +474,7 @@ func (app *App) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrDuplicateEmail):
-				// Race condition — another request just created this user. Retry login path.
+				// Race condition — another request just created this user.
 				app.errorResponse(w, r, http.StatusConflict, "user creation conflict, please retry")
 			default:
 				app.serverErrorResponse(w, r, err)
@@ -454,12 +482,35 @@ func (app *App) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Existing user — guard against email/google account collision
+		// EXISTING USER PATH.
+		// Guard against provider collision, then restore if soft-deleted,
+		// queue the restoration email, and create a session.
 		if user.AuthProvider != "google" {
 			app.errorResponse(w, r, http.StatusConflict, "this email is registered with a different sign-in method")
 			return
 		}
-		session, err = app.models.Sessions.Create(r.Context(), app.db, user.ID, ip, r.UserAgent())
+
+		wasDeleted := user.DeletedAt != nil
+		err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+			if wasDeleted {
+				if err := app.models.Users.Restore(r.Context(), tx, user.ID); err != nil {
+					return err
+				}
+				app.logger.Info("user account restored from soft-delete via google auth",
+					"user_id", user.ID, "email", user.Email)
+
+				taskPayload := map[string]any{
+					"user_email": user.Email,
+					"first_name": user.FirstName,
+				}
+				if err := app.models.Tasks.Insert(r.Context(), tx, "email:account_restored", taskPayload); err != nil {
+					return err
+				}
+			}
+			var err error
+			session, err = app.models.Sessions.Create(r.Context(), tx, user.ID, ip, r.UserAgent())
+			return err
+		})
 		if err != nil {
 			app.serverErrorResponse(w, r, err)
 			return
@@ -676,4 +727,209 @@ func (app *App) resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+}
+
+// changePasswordHandler godoc
+// @Summary      Change the current user's password
+// @Description  Verify the current password, set a new one, and revoke all other sessions. A confirmation email is sent on success.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      data.ChangePasswordInput  true  "Current and new password"
+// @Success      200   {object}  envelope
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse  "Current password is incorrect"
+// @Failure      409   {object}  ErrorResponse  "User signed in with an external provider"
+// @Failure      422   {object}  ErrorResponse
+// @Failure      429   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /me/password [post]
+func (app *App) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	user := app.contextGetUser(r)
+
+	// Reject for non-email providers. Google users don't have a password
+	// at GradConnect — their authentication happens at Google.
+	if user.AuthProvider != "email" {
+		app.errorResponse(w, r, http.StatusConflict,
+			"this account uses Google sign-in; manage your password via your Google account")
+		return
+	}
+
+	var input data.ChangePasswordInput
+	if err := app.readJSON(w, r, &input); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	if data.ValidateChangePasswordInput(v, input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Rate-limit password change attempts per user. A leaked session
+	// token shouldn't allow unlimited guessing of the current password.
+	limitKey := "change-password:" + user.ID
+	allowed, retryAfter := app.limiter.Peek(limitKey, 5, time.Hour)
+	if !allowed {
+		app.rateLimitExceededResponse(w, r, retryAfter)
+		return
+	}
+
+	// Verify current password before doing anything else.
+	match, err := user.Password.Matches(input.CurrentPassword)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	if !match {
+		app.limiter.Allow(limitKey, 5, time.Hour) // count this failure
+		app.invalidCredentialsResponse(w, r)
+		return
+	}
+
+	app.limiter.Reset(limitKey)
+
+	hash, err := data.HashPassword(input.NewPassword)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Current session ID, so we can keep this device logged in while
+	// revoking everywhere else.
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		// Should be impossible — the auth middleware just succeeded.
+		// Treat as auth failure rather than 500 to fail safe.
+		app.authenticationRequiredResponse(w, r)
+		return
+	}
+	currentSessionID := cookie.Value
+
+	err = app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		if err := app.models.Users.UpdatePassword(r.Context(), tx, user.ID, hash); err != nil {
+			return err
+		}
+
+		if err := app.models.Sessions.DeleteAllForUserExcept(r.Context(), tx, user.ID, currentSessionID); err != nil {
+			return err
+		}
+
+		// Confirmation email: notifies the user that the change happened
+		// so they can react if it wasn't them. Best-effort — failure here
+		// shouldn't roll back the password change.
+		taskPayload := map[string]any{
+			"user_email": user.Email,
+			"first_name": user.FirstName,
+		}
+		return app.models.Tasks.Insert(r.Context(), tx, "email:password_changed", taskPayload)
+	})
+
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	response := envelope{"data": envelope{
+		"message": "Password updated. You've been signed out of all other devices.",
+	}}
+	if err := app.writeJSON(w, http.StatusOK, response, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+type deleteAccountInput struct {
+	Password     string `json:"password"`     // empty for Google users
+	Confirmation string `json:"confirmation"` // must equal "DELETE"
+	Reason       string `json:"reason"`       // optional
+}
+
+// deleteAccountHandler godoc
+// @Summary      Delete the current user's account
+// @Description  Soft-deletes the user's account. The account becomes
+// @Description  inaccessible immediately and is permanently removed after
+// @Description  30 days. The user can recover by logging in within the
+// @Description  grace period (a separate undelete endpoint, not exposed
+// @Description  in this version — they'd contact support).
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      deleteAccountInput  true  "Deletion confirmation"
+// @Success      204
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse  "Password incorrect"
+// @Failure      422   {object}  ErrorResponse  "Confirmation phrase missing or wrong"
+// @Failure      500   {object}  ErrorResponse
+// @Router       /me [delete]
+func (app *App) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
+	user := app.contextGetUser(r)
+
+	var input deleteAccountInput
+	if err := app.readJSON(w, r, &input); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Confirmation != "DELETE" {
+		v := validator.New()
+		v.AddError("confirmation", "type DELETE to confirm")
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	if user.AuthProvider == "email" {
+		if input.Password == "" {
+			v := validator.New()
+			v.AddError("password", "must be provided")
+			app.failedValidationResponse(w, r, v.Errors)
+			return
+		}
+
+		match, err := user.Password.Matches(input.Password)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+		if !match {
+			app.invalidCredentialsResponse(w, r)
+			return
+		}
+	}
+
+	err := app.inTransaction(r.Context(), func(tx pgx.Tx) error {
+		if err := app.models.Users.SoftDelete(r.Context(), tx, user.ID, input.Reason); err != nil {
+			return err
+		}
+		if err := app.models.Sessions.DeleteAllForUser(r.Context(), tx, user.ID); err != nil {
+			return err
+		}
+
+		taskPayload := map[string]any{
+			"user_email": user.Email,
+			"first_name": user.FirstName,
+		}
+		return app.models.Tasks.Insert(r.Context(), tx, "email:account_deleted", taskPayload)
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Clear the session cookie. The session row is gone from the DB;
+	// clearing the cookie prevents the browser from sending stale
+	// credentials on the next request.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Domain:   app.config.CookieDomain,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   app.config.Env == "production",
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	w.WriteHeader(http.StatusNoContent)
 }

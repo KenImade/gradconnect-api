@@ -24,13 +24,15 @@ const cronInterval = 15 * time.Minute
 const (
 	cronTargetHourReminders = 18
 	cronTargetHourRecalc    = 3
+	deletedUserGracePeriod  = 30 * 24 * time.Hour
 )
 
 // cronJobName — identifier used in the cron_run table for idempotency.
 const (
-	cronJobName                = "deadline_reminders"
-	cronJobNameRecalcRatings   = "recalculate_ratings"
-	cronJobNameCleanupSessions = "cleanup_sessions"
+	cronJobName                  = "deadline_reminders"
+	cronJobNameRecalcRatings     = "recalculate_ratings"
+	cronJobNameCleanupSessions   = "cleanup_sessions"
+	cronJobNamePurgeDeletedUsers = "purge_deleted_users"
 )
 
 // daysAhead — bookmarks with deadlines exactly this many days from
@@ -71,6 +73,7 @@ func (p *Pool) runScheduledChecks(ctx context.Context, baseURL, frontendURL stri
 	p.maybeRunDeadlineReminders(ctx, baseURL, frontendURL)
 	p.maybeRunRecalcRatings(ctx)
 	p.maybeRunCleanupSessions(ctx)
+	p.maybeRunPurgeDeletedUsers(ctx)
 }
 
 // maybeRunDeadlineReminders enqueues today's reminder emails if:
@@ -249,6 +252,78 @@ func (p *Pool) maybeRunCleanupSessions(ctx context.Context) {
 	}
 
 	p.logger.Info("session cleanup cron complete", "run_id", runID, "deleted", deleted)
+}
+
+// maybeRunPurgeDeletedUsers permanently removes app_user rows that
+// have been soft-deleted longer than the grace period. Runs every
+// 6 hours, with the same once-per-target-hour guard as session
+// cleanup.
+func (p *Pool) maybeRunPurgeDeletedUsers(ctx context.Context) {
+	lagos, err := time.LoadLocation("Africa/Lagos")
+	if err != nil {
+		p.logger.Error("loading Africa/Lagos timezone", "err", err)
+		return
+	}
+
+	now := time.Now().In(lagos)
+	if !cleanupHours[now.Hour()] {
+		return
+	}
+
+	var lastStarted time.Time
+	err = p.db.QueryRow(ctx, `
+        SELECT started_at FROM cron_run
+        WHERE job_name = $1
+        ORDER BY started_at DESC
+        LIMIT 1
+    `, cronJobNamePurgeDeletedUsers).Scan(&lastStarted)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		p.logger.Error("checking last purge run", "err", err)
+		return
+	}
+
+	if !lastStarted.IsZero() &&
+		lastStarted.In(lagos).Hour() == now.Hour() &&
+		lastStarted.In(lagos).YearDay() == now.YearDay() {
+		return
+	}
+
+	today := now.Format("2006-01-02")
+
+	var runID string
+	err = p.db.QueryRow(ctx, `
+        INSERT INTO cron_run (job_name, run_date)
+        VALUES ($1, $2::date)
+        ON CONFLICT (job_name, run_date) DO UPDATE
+            SET started_at = now(),
+                completed_at = NULL,
+                enqueued_count = 0
+        RETURNING id
+    `, cronJobNamePurgeDeletedUsers, today).Scan(&runID)
+	if err != nil {
+		p.logger.Error("recording purge cron run", "err", err)
+		return
+	}
+
+	p.logger.Info("running purge of deleted users", "run_id", runID)
+
+	users := data.UserModel{}
+	purged, err := users.PurgeSoftDeleted(ctx, p.db, deletedUserGracePeriod)
+	if err != nil {
+		p.logger.Error("purging deleted users", "err", err)
+		return
+	}
+
+	_, err = p.db.Exec(ctx, `
+        UPDATE cron_run
+        SET completed_at = now(), enqueued_count = $1
+        WHERE id = $2
+    `, purged, runID)
+	if err != nil {
+		p.logger.Error("marking purge cron run complete", "err", err, "run_id", runID)
+	}
+
+	p.logger.Info("purge of deleted users complete", "run_id", runID, "purged", purged)
 }
 
 // recalculateAllEmployerRatings runs the per-employer recalc query

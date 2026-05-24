@@ -76,7 +76,21 @@ func (m SessionModel) Delete(ctx context.Context, db DBTX, id string) error {
 	return err
 }
 
+// DeleteAllForUser removes every active session for the user.
+// Used when resetting the password for the user.
 func (m SessionModel) DeleteAllForUser(ctx context.Context, db DBTX, userID string) error {
 	_, err := db.Exec(ctx, "DELETE FROM session WHERE user_id = $1", userID)
+	return err
+}
+
+// DeleteAllForUserExcept removes every session for the user except the one
+// matching exceptSessionID. Used when changing the password to log the user
+// out of all other devices while keeping their current session live.
+func (m SessionModel) DeleteAllForUserExcept(ctx context.Context, db DBTX, userID, exceptSessionID string) error {
+	const query = `
+        DELETE FROM session
+        WHERE user_id = $1 AND id != $2`
+
+	_, err := db.Exec(ctx, query, userID, exceptSessionID)
 	return err
 }

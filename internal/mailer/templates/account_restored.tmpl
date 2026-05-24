@@ -1,0 +1,63 @@
+{{define "subject"}}Welcome back to GradConnect{{end}}
+
+{{define "plainBody"}}
+Hi {{.FirstName}},
+
+Welcome back. Your GradConnect account has been fully restored — bookmarks, applications, reviews, all of it.
+
+If you didn't sign in to restore your account, someone else may have access to your credentials. Change your password immediately at https://gradconnect.ng/forgot-password and contact us at support@gradconnect.ng.
+
+Glad to have you back.
+
+The GradConnect Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Welcome back to GradConnect</title>
+</head>
+<body style="background-color: #f4ede4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 40px 0;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <tr>
+                        <td style="background-color: #7d2820; padding: 32px 40px; text-align: center;">
+                            <h1 style="color: #ffffff; font-size: 26px; margin: 0; font-weight: 600; letter-spacing: -0.3px;">GradConnect</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 40px 24px 40px; color: #2d3748; line-height: 1.6;">
+                            <h2 style="color: #1a202c; font-size: 22px; margin: 0 0 20px 0;">Welcome back</h2>
+                            <p style="margin: 0 0 16px 0; color: #4a5568;">Hi {{.FirstName}},</p>
+                            <p style="margin: 0 0 16px 0; color: #4a5568;">Your GradConnect account has been fully restored — bookmarks, applications, reviews, all of it.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 40px 32px 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fef2f2; border-left: 3px solid #b91c1c; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 14px 18px; color: #7f1d1d; font-size: 13px; line-height: 1.6;">
+                                        <strong>Didn't sign in to restore?</strong> Someone else may have access to your credentials. <a href="https://gradconnect.ng/forgot-password" style="color: #7f1d1d; text-decoration: underline;">Change your password</a> immediately and contact us at <a href="mailto:support@gradconnect.ng" style="color: #7f1d1d; text-decoration: underline;">support@gradconnect.ng</a>.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #faf5ec; color: #718096; font-size: 12px; text-align: center; border-top: 1px solid #edf2f7;">
+                            <p style="margin: 0 0 6px 0;">Glad to have you back.</p>
+                            <p style="margin: 0;">&copy; 2026 GradConnect. Lagos, Nigeria.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+{{end}}

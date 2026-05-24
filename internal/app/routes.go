@@ -68,6 +68,10 @@ func (app *App) routes() http.Handler {
 		app.requireAuthenticatedUser(app.getCurrentUserHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/v1/me",
 		app.requireAuthenticatedUser(app.updateUserHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/v1/me",
+		app.requireAuthenticatedUser(app.deleteAccountHandler))
+	router.HandlerFunc(http.MethodPost, "/api/v1/me/password",
+		app.requireAuthenticatedUser(app.changePasswordHandler))
 
 	// bookmark
 	router.HandlerFunc(http.MethodGet, "/api/v1/me/bookmarks",
