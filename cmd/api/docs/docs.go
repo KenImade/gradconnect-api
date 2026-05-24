@@ -2907,6 +2907,59 @@ const docTemplate = `{
                     }
                 }
             },
+            "delete": {
+                "description": "Soft-deletes the user's account. The account becomes\ninaccessible immediately and is permanently removed after\n30 days. The user can recover by logging in within the\ngrace period (a separate undelete endpoint, not exposed\nin this version — they'd contact support).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Delete the current user's account",
+                "parameters": [
+                    {
+                        "description": "Deletion confirmation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.deleteAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Password incorrect",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Confirmation phrase missing or wrong",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "description": "Update the authenticated user's profile fields. Email cannot be changed.",
                 "consumes": [
@@ -3439,6 +3492,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/me/password": {
+            "post": {
+                "description": "Verify the current password, set a new one, and revoke all other sessions. A confirmation email is sent on success.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Change the current user's password",
+                "parameters": [
+                    {
+                        "description": "Current and new password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/data.ChangePasswordInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Current password is incorrect",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "User signed in with an external provider",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/opportunities": {
             "get": {
                 "description": "List graduate opportunities visible to the public — open and upcoming only.\nClosed and withdrawn listings are hidden; admins should use /admin/opportunities for the full ledger view.",
@@ -3883,6 +4006,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.deleteAccountInput": {
+            "type": "object",
+            "properties": {
+                "confirmation": {
+                    "description": "must equal \"DELETE\"",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "empty for Google users",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "optional",
+                    "type": "string"
+                }
+            }
+        },
         "app.envelope": {
             "type": "object",
             "additionalProperties": {}
@@ -4107,6 +4247,20 @@ const docTemplate = `{
                 },
                 "opportunity": {
                     "$ref": "#/definitions/data.OpportunityStub"
+                }
+            }
+        },
+        "data.ChangePasswordInput": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string"
+                },
+                "new_password_confirm": {
+                    "type": "string"
                 }
             }
         },

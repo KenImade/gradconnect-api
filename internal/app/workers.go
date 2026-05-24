@@ -44,10 +44,13 @@ func (app *App) buildWorkerPool() *worker.Pool {
 	dispatcher.Register("email:welcome", app.handleEmailWelcome)
 	dispatcher.Register("email:password_reset", app.handleEmailPasswordReset)
 	dispatcher.Register("email:deadline_reminder", app.handleEmailDeadlineReminder)
+	dispatcher.Register("email:password_changed", app.handleEmailPasswordChanged)
 	dispatcher.Register("admin:import", app.handleAdminImport)
 	dispatcher.Register("employer:recalc_ratings", app.handleEmployerRecalcRatings)
 	dispatcher.Register("ses:bounce", app.handleSESBounce)
 	dispatcher.Register("ses:complaint", app.handleSESComplaint)
+	dispatcher.Register("email:account_deleted", app.handleEmailAccountDeleted)
+	dispatcher.Register("email:account_restored", app.handleEmailAccountRestored)
 
 	return worker.New(app.db, app.logger, dispatcher)
 }
@@ -89,6 +92,17 @@ func (app *App) handleEmailPasswordReset(ctx context.Context, _ string, payload 
 		return err
 	}
 	return app.sendIfDeliverable(ctx, load.Email, "password_reset.tmpl", load)
+}
+
+func (app *App) handleEmailPasswordChanged(ctx context.Context, _ string, payload []byte) error {
+	load, err := worker.UnmarshalPayload[struct {
+		Email     string `json:"user_email"`
+		FirstName string `json:"first_name"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.sendIfDeliverable(ctx, load.Email, "password_changed.tmpl", load)
 }
 
 func (app *App) handleAdminImport(ctx context.Context, _ string, payload []byte) error {
@@ -167,4 +181,31 @@ func (app *App) handleSESComplaint(ctx context.Context, _ string, payload []byte
 	}
 
 	return nil
+}
+
+func (app *App) handleEmailAccountDeleted(ctx context.Context, _ string, payload []byte) error {
+	load, err := worker.UnmarshalPayload[struct {
+		Email     string `json:"user_email"`
+		FirstName string `json:"first_name"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	// Note: NOT using sendIfDeliverable here. A soft-deleted account
+	// can still receive this notification — the email_status check
+	// blocks bounced/complained addresses, which is correct, but we
+	// shouldn't filter on the user's deleted status (we just deleted
+	// them; that's the whole point of the email).
+	return app.mailer.Send(load.Email, "account_deleted.tmpl", load)
+}
+
+func (app *App) handleEmailAccountRestored(ctx context.Context, _ string, payload []byte) error {
+	load, err := worker.UnmarshalPayload[struct {
+		Email     string `json:"user_email"`
+		FirstName string `json:"first_name"`
+	}](payload)
+	if err != nil {
+		return err
+	}
+	return app.sendIfDeliverable(ctx, load.Email, "account_restored.tmpl", load)
 }

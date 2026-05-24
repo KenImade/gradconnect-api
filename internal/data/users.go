@@ -32,6 +32,7 @@ type User struct {
 	Version            int             `json:"version"`
 	CreatedAt          time.Time       `json:"created_at"`
 	UpdatedAt          time.Time       `json:"updated_at"`
+	DeletedAt          *time.Time      `json:"-"`
 }
 
 type Password struct {
@@ -70,6 +71,12 @@ type UpdateUserInput struct {
 
 type GoogleAuthInput struct {
 	Code string `json:"code"`
+}
+
+type ChangePasswordInput struct {
+	CurrentPassword    string `json:"current_password"`
+	NewPassword        string `json:"new_password"`
+	NewPasswordConfirm string `json:"new_password_confirm"`
 }
 
 type ForgotPasswordInput struct {
@@ -194,6 +201,13 @@ func ValidateLoginUserInput(v *validator.Validator, user LoginUserInput) {
 	ValidatePasswordPlaintext(v, user.Password)
 }
 
+func ValidateChangePasswordInput(v *validator.Validator, input ChangePasswordInput) {
+	v.Check(input.CurrentPassword != "", "current_password", "must be provided")
+	ValidatePasswordPlaintext(v, input.NewPassword)
+	v.Check(input.NewPassword == input.NewPasswordConfirm, "new_password_confirm", "passwords must match")
+	v.Check(input.NewPassword != input.CurrentPassword, "new_password", "must be different from current password")
+}
+
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
@@ -245,9 +259,9 @@ func (m UserModel) GetByEmail(ctx context.Context, db DBTX, email string) (*User
 	query := `
         SELECT id, email, password_hash, first_name, last_name, auth_provider, email_verified,
                degree_discipline, graduation_year, target_industries, preferred_locations,
-               preferences, version, created_at, updated_at
+               preferences, version, created_at, updated_at, deleted_at
         FROM app_user
-        WHERE email = $1`
+        WHERE email = $1 AND deleted_at IS NULL`
 
 	user := &User{}
 	err := db.QueryRow(ctx, query, email).Scan(
@@ -266,6 +280,7 @@ func (m UserModel) GetByEmail(ctx context.Context, db DBTX, email string) (*User
 		&user.Version,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.DeletedAt,
 	)
 	if err != nil {
 		switch {
@@ -283,9 +298,9 @@ func (m UserModel) GetByID(ctx context.Context, db DBTX, id string) (*User, erro
 	query := `
         SELECT id, email, password_hash, first_name, last_name, auth_provider, email_verified,
                degree_discipline, graduation_year, target_industries, preferred_locations,
-               preferences, version, created_at, updated_at
+               preferences, version, created_at, updated_at, deleted_at
         FROM app_user
-        WHERE id = $1`
+        WHERE id = $1 AND deleted_at IS NULL`
 
 	user := &User{}
 	err := db.QueryRow(ctx, query, id).Scan(
@@ -304,6 +319,7 @@ func (m UserModel) GetByID(ctx context.Context, db DBTX, id string) (*User, erro
 		&user.Version,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.DeletedAt,
 	)
 	if err != nil {
 		switch {
@@ -397,5 +413,115 @@ func (m UserModel) MarkEmailStatus(ctx context.Context, db DBTX, email, status s
         WHERE email = $2`
 
 	_, err := db.Exec(ctx, query, status, email)
+	return err
+}
+
+// Add to internal/data/users.go alongside the other UserModel methods.
+
+// SoftDelete marks the account as deleted_at = now(). The user record
+// remains for 30 days so accidental deletions can be recovered, after
+// which the cleanup cron permanently removes it.
+//
+// Optional reason is stored verbatim for analytics — useful to learn
+// why people leave. Pass empty string if not collected.
+func (m UserModel) SoftDelete(ctx context.Context, db DBTX, userID, reason string) error {
+	const query = `
+        UPDATE app_user
+        SET deleted_at = now(),
+            deletion_reason = NULLIF($1, ''),
+            version = version + 1
+        WHERE id = $2 AND deleted_at IS NULL`
+
+	tag, err := db.Exec(ctx, query, reason, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		// Either the user doesn't exist or was already soft-deleted.
+		// Either way, the caller's intent ("this account is deleted")
+		// is satisfied — return success.
+		return nil
+	}
+	return nil
+}
+
+// PurgeSoftDeleted removes app_user rows that have been soft-deleted
+// for longer than the grace period. Returns the number of rows deleted.
+//
+// Because review.user_id has ON DELETE SET NULL, reviews survive the
+// purge. Other associations (sessions, bookmarks, tokens) cascade-delete
+// per their FK definitions.
+func (m UserModel) PurgeSoftDeleted(ctx context.Context, db DBTX, gracePeriod time.Duration) (int, error) {
+	const query = `
+        DELETE FROM app_user
+        WHERE deleted_at IS NOT NULL
+          AND deleted_at < now() - $1::interval`
+
+	tag, err := db.Exec(ctx, query, gracePeriod)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// GetByEmailIncludingDeleted finds a user by email even if they've been
+// soft-deleted. Use this only in the sign-in path, where a soft-deleted
+// user attempting to log in should be recoverable rather than treated as
+// non-existent. All other lookups should use GetByEmail, which filters
+// out deleted users.
+func (m UserModel) GetByEmailIncludingDeleted(ctx context.Context, db DBTX, email string) (*User, error) {
+	query := `
+        SELECT id, email, password_hash, first_name, last_name, auth_provider, email_verified,
+               degree_discipline, graduation_year, target_industries, preferred_locations,
+               preferences, version, created_at, updated_at, deleted_at
+        FROM app_user
+        WHERE email = $1`
+
+	user := &User{}
+	err := db.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password.hash,
+		&user.FirstName,
+		&user.LastName,
+		&user.AuthProvider,
+		&user.EmailVerified,
+		&user.DegreeDiscipline,
+		&user.GraduationYear,
+		&user.TargetIndustries,
+		&user.PreferredLocations,
+		&user.Preferences,
+		&user.Version,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.DeletedAt,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return user, nil
+}
+
+// Restore clears the soft-deletion mark on a user account. The user
+// becomes active again and can be loaded by the auth middleware.
+//
+// Safe to call on a user who isn't soft-deleted (no-op). The version
+// bump ensures any concurrent reads observing the old state will
+// conflict on optimistic locks.
+func (m UserModel) Restore(ctx context.Context, db DBTX, userID string) error {
+	const query = `
+        UPDATE app_user
+        SET deleted_at = NULL,
+            deletion_reason = NULL,
+            version = version + 1
+        WHERE id = $1`
+
+	_, err := db.Exec(ctx, query, userID)
 	return err
 }

@@ -39,6 +39,15 @@ func (app *App) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		if user.DeletedAt != nil {
+			// Account has been soft-deleted. Treat the request as
+			// anonymous and revoke this stale session.
+			_ = app.models.Sessions.Delete(r.Context(), app.db, session.ID)
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		r = app.contextSetUser(r, user)
 		if hub := sentry.GetHubFromContext(r.Context()); hub != nil {
 			hub.Scope().SetUser(sentry.User{

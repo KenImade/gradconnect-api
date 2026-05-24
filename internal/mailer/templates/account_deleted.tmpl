@@ -1,0 +1,83 @@
+{{define "subject"}}Your GradConnect account has been deleted{{end}}
+
+{{define "plainBody"}}
+Hi {{.FirstName}},
+
+This confirms that your GradConnect account was just deleted.
+
+Changed your mind? You have 30 days to recover everything. Just sign in normally at https://gradconnect.ng/login with your usual credentials, and your account will come back exactly as it was — bookmarks, applications, reviews, all of it.
+
+After 30 days, your account and personal information are permanently removed and can't be restored.
+
+If you didn't delete this account yourself, sign in immediately to restore it, then change your password at https://gradconnect.ng/forgot-password and contact us at support@gradconnect.ng.
+
+Thanks for being part of GradConnect.
+
+The GradConnect Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Your account has been deleted</title>
+</head>
+<body style="background-color: #f4ede4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 40px 0;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <tr>
+                        <td style="background-color: #7d2820; padding: 32px 40px; text-align: center;">
+                            <h1 style="color: #ffffff; font-size: 26px; margin: 0; font-weight: 600; letter-spacing: -0.3px;">GradConnect</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 40px 20px 40px; color: #2d3748; line-height: 1.6;">
+                            <h2 style="color: #1a202c; font-size: 22px; margin: 0 0 20px 0;">Your account has been deleted</h2>
+                            <p style="margin: 0 0 16px 0; color: #4a5568;">Hi {{.FirstName}},</p>
+                            <p style="margin: 0 0 16px 0; color: #4a5568;">This confirms that your GradConnect account was just deleted.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 40px 8px 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fdf6e3; border-left: 3px solid #b87333; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 16px 18px; color: #5a3a0e; font-size: 14px; line-height: 1.6;">
+                                        <strong>Changed your mind?</strong> You have 30 days to recover everything. Just <a href="https://gradconnect.ng/login" style="color: #5a3a0e; text-decoration: underline;">sign in normally</a> with your usual credentials, and your account will come back exactly as it was — bookmarks, applications, reviews, all of it.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 16px 40px 8px 40px; color: #4a5568; font-size: 14px; line-height: 1.6;">
+                            <p style="margin: 0;">After 30 days, your account and personal information are permanently removed and can't be restored.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 16px 40px 32px 40px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fef2f2; border-left: 3px solid #b91c1c; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 14px 18px; color: #7f1d1d; font-size: 13px; line-height: 1.6;">
+                                        <strong>Didn't delete your account?</strong> <a href="https://gradconnect.ng/login" style="color: #7f1d1d; text-decoration: underline;">Sign in immediately</a> to restore it, then <a href="https://gradconnect.ng/forgot-password" style="color: #7f1d1d; text-decoration: underline;">change your password</a> and contact us at <a href="mailto:support@gradconnect.ng" style="color: #7f1d1d; text-decoration: underline;">support@gradconnect.ng</a>.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #faf5ec; color: #718096; font-size: 12px; text-align: center; border-top: 1px solid #edf2f7;">
+                            <p style="margin: 0 0 6px 0;">Thanks for being part of GradConnect.</p>
+                            <p style="margin: 0;">&copy; 2026 GradConnect. Lagos, Nigeria.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+{{end}}

@@ -25,6 +25,18 @@ definitions:
       opportunity_id:
         type: string
     type: object
+  app.deleteAccountInput:
+    properties:
+      confirmation:
+        description: must equal "DELETE"
+        type: string
+      password:
+        description: empty for Google users
+        type: string
+      reason:
+        description: optional
+        type: string
+    type: object
   app.envelope:
     additionalProperties: {}
     type: object
@@ -177,6 +189,15 @@ definitions:
         type: string
       opportunity:
         $ref: '#/definitions/data.OpportunityStub'
+    type: object
+  data.ChangePasswordInput:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+      new_password_confirm:
+        type: string
     type: object
   data.CreateApplicationInput:
     properties:
@@ -2631,6 +2652,46 @@ paths:
       tags:
       - System
   /me:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Soft-deletes the user's account. The account becomes
+        inaccessible immediately and is permanently removed after
+        30 days. The user can recover by logging in within the
+        grace period (a separate undelete endpoint, not exposed
+        in this version — they'd contact support).
+      parameters:
+      - description: Deletion confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.deleteAccountInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Password incorrect
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Confirmation phrase missing or wrong
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Delete the current user's account
+      tags:
+      - Auth
     get:
       description: Returns the user associated with the current session, including
         their permissions.
@@ -3013,6 +3074,53 @@ paths:
       summary: Remove a bookmark
       tags:
       - Bookmarks
+  /me/password:
+    post:
+      consumes:
+      - application/json
+      description: Verify the current password, set a new one, and revoke all other
+        sessions. A confirmation email is sent on success.
+      parameters:
+      - description: Current and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.ChangePasswordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "401":
+          description: Current password is incorrect
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "409":
+          description: User signed in with an external provider
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.ErrorResponse'
+      summary: Change the current user's password
+      tags:
+      - Auth
   /opportunities:
     get:
       description: |-
