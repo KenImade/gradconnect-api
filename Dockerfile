@@ -1,45 +1,20 @@
-ARG GO_VERSION=1
-FROM golang:${GO_VERSION}-alpine AS builder
+# ---- Build stage ----
+FROM golang:1.25-bookworm AS builder
+WORKDIR /src
 
-WORKDIR /build
-
-# Cache dependencies separately from source for fast incremental builds
+# Copy the dependency manifests first, so this layer is cached
+# and deps are only re-downloaded when go.mod/go.sum actually change.
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Install swag CLI inside the builder stage. Pinned to a specific version
-# for reproducibility — bump when you upgrade locally.
-RUN go install github.com/swaggo/swag/cmd/swag@v1.16.4
-
-
-# Build the API binary
+# Now copy the source and compile a static binary.
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/server ./cmd/api
 
-# Generate Swagger spec. --parseDependency is required because some of the
-# response shapes reference types in internal/data.
-RUN /go/bin/swag init -g cmd/api/main.go -o cmd/api/docs --parseDependency
-
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags='-s -w' \
-    -o /build/api \
-    ./cmd/api
-
-# Build the migrate CLI binary too — used by the Fly release_command
-RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.17.0
-
-# Runtime image — minimal, just enough to run a Go binary
-FROM alpine:3.20
-
-# ca-certificates: needed for HTTPS calls (Resend, Google OAuth, R2)
-# tzdata: needed for time.LoadLocation("Africa/Lagos") in the cron worker
-RUN apk add --no-cache ca-certificates tzdata
-
+# ---- Runtime stage ----
+FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
-
-COPY --from=builder /build/api /app/api
-COPY --from=builder /go/bin/migrate /app/migrate
-COPY --from=builder /build/migrations /app/migrations
-
+COPY --from=builder /out/server /app/server
 EXPOSE 8080
-
-CMD ["/app/api"]
+USER nonroot:nonroot
+ENTRYPOINT ["/app/server"]
